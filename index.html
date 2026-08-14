@@ -44,6 +44,10 @@
                     <input type="text" id="settings-city-input" placeholder="Enter city name">
                     <button id="settings-search-button" type="button">Search</button>
                 </div>
+                <label class="settings-toggle" for="settings-random-city-toggle">
+                    <span class="settings-toggle-text">Random City On Intro Wrap</span>
+                    <input type="checkbox" id="settings-random-city-toggle">
+                </label>
                 <div class="settings-api-section">
                     <label class="settings-api-label" for="settings-airnow-api-key">AirNow API Key</label>
                     <input type="password" id="settings-airnow-api-key" placeholder="Enter AirNow API key">
@@ -57,9 +61,42 @@
                     <span class="settings-toggle-text">Mute Audio</span>
                     <input type="checkbox" id="settings-mute-toggle">
                 </label>
+                <button id="settings-open-debug-button" class="settings-debug-open" type="button">Open Debug Menu</button>
+            </div>
+        </div>
+
+        <div id="debug-modal" class="settings-modal" hidden>
+            <div class="settings-modal-backdrop" data-debug-close></div>
+            <div class="settings-modal-panel debug-modal-panel" role="dialog" aria-modal="true" aria-labelledby="debug-modal-title">
+                <button class="settings-modal-close" type="button" aria-label="Close debug menu" data-debug-close>&times;</button>
+                <p class="settings-modal-kicker">DEBUG</p>
+                <h2 id="debug-modal-title">Scene and Theme Controls</h2>
+                <p class="settings-modal-copy">Jump scenes and pair themes with specific backgrounds while tuning visuals.</p>
                 <div class="settings-debug-tabs" aria-label="Scene debug shortcuts">
                     <p class="settings-debug-tabs-label">Scene Shortcuts</p>
-                    <div id="settings-scene-buttons" class="settings-debug-tabs-grid"></div>
+                    <div id="debug-scene-buttons" class="settings-debug-tabs-grid"></div>
+                </div>
+                <div class="debug-control-group">
+                    <label class="settings-api-label" for="debug-theme-select">Theme</label>
+                    <select id="debug-theme-select" class="debug-select">
+                        <option value="">Auto</option>
+                        <option value="sunrise">Sunrise</option>
+                        <option value="day">Day</option>
+                        <option value="sunset">Sunset</option>
+                        <option value="rain">Rain</option>
+                        <option value="cloudy">Cloudy</option>
+                        <option value="storm">Storm</option>
+                        <option value="fog">Fog</option>
+                        <option value="snow">Snow</option>
+                        <option value="night">Night</option>
+                        <option value="severe">Severe</option>
+                    </select>
+                </div>
+                <div class="debug-control-group">
+                    <label class="settings-api-label" for="debug-background-select">Background</label>
+                    <select id="debug-background-select" class="debug-select">
+                        <option value="">Auto Random</option>
+                    </select>
                 </div>
             </div>
         </div>

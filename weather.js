@@ -7,11 +7,19 @@ const settingsModal = document.getElementById('settings-modal');
 const settingsCityInput = document.getElementById('settings-city-input');
 const settingsSearchButton = document.getElementById('settings-search-button');
 const settingsAutoAdvanceToggle = document.getElementById('settings-auto-advance-toggle');
+const settingsRandomCityToggle = document.getElementById('settings-random-city-toggle');
 const settingsMuteToggle = document.getElementById('settings-mute-toggle');
 const settingsAirNowApiKeyInput = document.getElementById('settings-airnow-api-key');
-const settingsSceneButtons = document.getElementById('settings-scene-buttons');
+const settingsOpenDebugButton = document.getElementById('settings-open-debug-button');
+const debugModal = document.getElementById('debug-modal');
+const debugSceneButtons = document.getElementById('debug-scene-buttons');
+const debugThemeSelect = document.getElementById('debug-theme-select');
+const debugBackgroundSelect = document.getElementById('debug-background-select');
 const settingsCloseButtons = document.querySelectorAll('[data-settings-close]');
+const debugCloseButtons = document.querySelectorAll('[data-debug-close]');
 let lastSearchedCity = '';
+let isWeatherRequestInFlight = false;
+let randomCityOnIntroWrapEnabled = false;
 const DEGREE_SYMBOL = String.fromCharCode(176);
 let airNowApiKey = localStorage.getItem('airnow-api-key') || '';
 const POLLEN_PROXY_BASE_URL = 'http://localhost:8787';
@@ -23,16 +31,16 @@ const MARINE_RADIUS_MILES = 25;
 const SURF_MAX_CLOSEST_ZONES = 5;
 const MARINE_LOOKBACK_HOURS = 24;
 const MARINE_PREDICTION_DAYS_AHEAD = 2;
+const ASSET_MANIFEST_PATH = 'assets-manifest.json';
+const US_CITIES_CSV_PATH = encodeURI('List of All US Cities.csv');
+const POLLEN_PROXY_RETRY_COOLDOWN_MS = 30 * 60 * 1000;
 const DEFAULT_SCENE_BACKGROUND_PATH = 'Backgrounds/Default%20background.jpeg';
 const DEFAULT_WELCOME_SCENE_BACKGROUND_PATH = 'Welcome/Default%20background.jpeg';
-const DEFAULT_MARINE_BODY_IMAGE_PATH = 'marine/fa8c4f05c9171dffb37e41c9a0187b5e.jpg';
-const DEFAULT_WINTER_BODY_IMAGE_PATH = 'winter/OIP.webp';
+const DEFAULT_MARINE_BODY_IMAGE_PATH = 'marine/IMG_6823.JPEG';
+const DEFAULT_WINTER_BODY_IMAGE_PATH = 'winter/IMG_9545.JPEG';
 const DEFAULT_MUSIC_TRACKS_BY_ALERT_MODE = {
     normal: [
         'music/normal/Entering Graciously.mp3'
-    ],
-    watch: [
-        'music/watch/Trauma Team UOST_ 3. Episode Selection (T.T. Version).mp3'
     ],
     warning: [
         'music/warning/Trauma Team UOST_ 10. First Response ~ Critical Moments.mp3'
@@ -41,6 +49,8 @@ const DEFAULT_MUSIC_TRACKS_BY_ALERT_MODE = {
         'music/welcome/Bluesy Vibes (Sting) - Doug Maxwell_Media Right Productions.mp3'
     ]
 };
+const VISUAL_THEME_KEYS = ['sunrise', 'day', 'sunset', 'rain', 'cloudy', 'storm', 'fog', 'snow', 'night', 'severe'];
+const SEVERE_BACKGROUND_CATEGORY_KEYS = ['snow', 'fire', 'wind', 'storm', 'heat', 'tornado', 'hurricane', 'flood', 'general'];
 const BACKGROUND_SEGMENT_KEYS = ['morning', 'day', 'sunset', 'night'];
 const DYNAMIC_BACKGROUND_SCENES = [
     'scene-welcome',
@@ -82,11 +92,26 @@ let lastWelcomeMusicHourKey = '';
 let pendingBackgroundStartTimeoutId = null;
 let pendingBackgroundFadeIntervalId = null;
 let runtimeAssetDiscoveryPromise = null;
+let cityCatalogLoadPromise = null;
+let cachedRandomCityEntries = [];
+let pollenProxyUnavailableUntilMs = 0;
+let hasLoggedPollenProxyCooldown = false;
 let discoveredMarineBodyImagePaths = [];
 let discoveredWinterBodyImagePaths = [];
+let discoveredBackgroundAssetsByTheme = {
+    sunrise: [],
+    day: [],
+    sunset: [],
+    rain: [],
+    cloudy: [],
+    storm: [],
+    fog: [],
+    snow: [],
+    night: [],
+    severe: createEmptySevereBackgroundThemeState()
+};
 let discoveredMusicTracksByAlertMode = {
     normal: [],
-    watch: [],
     warning: [],
     welcome: []
 };
@@ -102,6 +127,9 @@ let discoveredWelcomeAssetsBySegment = {
     sunset: { folderPath: '', direct: [], bySeason: {} },
     night: { folderPath: '', direct: [], bySeason: {} }
 };
+let debugThemeOverrideKey = '';
+let debugBackgroundOverridePath = '';
+let lastWeatherValuesForTheme = null;
 const INTRO_SENTENCES = [
     'Weather shifts quickly, so here is the latest local snapshot.',
     'Your local forecast is ready with conditions that matter right now.',
@@ -128,6 +156,123 @@ function submitWeatherSearch(sourceInput) {
 
     const city = sourceInput.value.trim();
     getWeather(city);
+}
+
+function setRandomCityOnIntroWrapEnabled(enabled) {
+    randomCityOnIntroWrapEnabled = Boolean(enabled);
+    localStorage.setItem('random-city-on-intro-wrap', String(randomCityOnIntroWrapEnabled));
+
+    if (settingsRandomCityToggle) {
+        settingsRandomCityToggle.checked = randomCityOnIntroWrapEnabled;
+    }
+}
+
+function parseCsvLine(line) {
+    const values = [];
+    let currentValue = '';
+    let inQuotes = false;
+
+    for (let index = 0; index < line.length; index += 1) {
+        const character = line[index];
+        if (character === '"') {
+            if (inQuotes && line[index + 1] === '"') {
+                currentValue += '"';
+                index += 1;
+            } else {
+                inQuotes = !inQuotes;
+            }
+            continue;
+        }
+
+        if (character === ',' && !inQuotes) {
+            values.push(currentValue);
+            currentValue = '';
+            continue;
+        }
+
+        currentValue += character;
+    }
+
+    values.push(currentValue);
+    return values.map(value => value.trim());
+}
+
+async function loadRandomCityEntries() {
+    if (cachedRandomCityEntries.length > 0) {
+        return cachedRandomCityEntries;
+    }
+
+    if (!cityCatalogLoadPromise) {
+        cityCatalogLoadPromise = fetch(US_CITIES_CSV_PATH, { cache: 'no-store' })
+            .then(async response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to load city catalog: ${response.status}`);
+                }
+
+                const csvText = await response.text();
+                const rows = csvText.split(/\r?\n/).map(row => row.trim()).filter(Boolean);
+                const parsedRows = [];
+
+                rows.forEach((row, index) => {
+                    if (index === 0) {
+                        return;
+                    }
+
+                    const columns = parseCsvLine(row);
+                    const cityName = String(columns[0] || '').trim();
+                    const stateCode = String(columns[4] || '').trim();
+                    if (!cityName || !stateCode) {
+                        return;
+                    }
+
+                    parsedRows.push({
+                        cityName,
+                        stateCode
+                    });
+                });
+
+                cachedRandomCityEntries = parsedRows;
+                return cachedRandomCityEntries;
+            })
+            .catch(error => {
+                console.warn('[CITY] Failed to load random city catalog:', error);
+                cachedRandomCityEntries = [];
+                return cachedRandomCityEntries;
+            });
+    }
+
+    return cityCatalogLoadPromise;
+}
+
+async function pickRandomCityFromCatalog() {
+    const entries = await loadRandomCityEntries();
+    if (!Array.isArray(entries) || entries.length === 0) {
+        return '';
+    }
+
+    const randomEntry = pickRandomArrayItem(entries);
+    if (!randomEntry) {
+        return '';
+    }
+
+    return `${randomEntry.cityName}, ${randomEntry.stateCode}`;
+}
+
+async function searchRandomCity() {
+    const cityQuery = await pickRandomCityFromCatalog();
+    if (!cityQuery) {
+        return;
+    }
+
+    if (cityInput) {
+        cityInput.value = cityQuery;
+    }
+
+    if (settingsCityInput) {
+        settingsCityInput.value = cityQuery;
+    }
+
+    getWeather(cityQuery);
 }
 
 function openSettingsModal() {
@@ -157,6 +302,146 @@ function closeSettingsModal() {
     }
 
     settingsModal.hidden = true;
+}
+
+function openDebugModal() {
+    if (!debugModal) {
+        return;
+    }
+
+    ensureRuntimeAssetsLoaded()
+        .finally(() => {
+            debugModal.hidden = false;
+            renderDebugThemeState();
+        });
+}
+
+function closeDebugModal() {
+    if (!debugModal) {
+        return;
+    }
+
+    debugModal.hidden = true;
+}
+
+function getVisualThemeFromConditionBucket(conditionBucket) {
+    switch (conditionBucket) {
+        case 'rainy': return 'rain';
+        case 'stormy': return 'storm';
+        case 'foggy': return 'fog';
+        case 'snowy': return 'snow';
+        case 'cloudy': return 'cloudy';
+        default: return '';
+    }
+}
+
+function getVisualThemeFromTimeSegment(segmentKey) {
+    if (segmentKey === 'morning') {
+        return 'sunrise';
+    }
+
+    if (segmentKey === 'day' || segmentKey === 'sunset' || segmentKey === 'night') {
+        return segmentKey;
+    }
+
+    return 'day';
+}
+
+function getAutoVisualThemeKey(weatherValues = null) {
+    const values = weatherValues || lastWeatherValuesForTheme || {};
+    const conditionBucket = getConditionBucket(values.conditionCurrent);
+    const conditionTheme = getVisualThemeFromConditionBucket(conditionBucket);
+    if (conditionTheme && (discoveredBackgroundAssetsByTheme[conditionTheme] || []).length > 0) {
+        return conditionTheme;
+    }
+
+    const timeSegment = getCurrentTimeSegment(values.sunriseIso, values.sunsetIso);
+    return getVisualThemeFromTimeSegment(timeSegment);
+}
+
+function getActiveVisualThemeKey(weatherValues = null) {
+    const alertSource = weatherValues?.alerts ?? lastWeatherValuesForTheme?.alerts;
+    if (isSevereAlertActive(alertSource)) {
+        return 'severe';
+    }
+
+    const requestedTheme = String(debugThemeOverrideKey || '').trim().toLowerCase();
+    if (requestedTheme && VISUAL_THEME_KEYS.includes(requestedTheme)) {
+        return requestedTheme;
+    }
+
+    return getAutoVisualThemeKey(weatherValues);
+}
+
+function applySceneTheme(themeKey) {
+    const normalizedTheme = VISUAL_THEME_KEYS.includes(themeKey) ? themeKey : 'day';
+    document.body.dataset.sceneTheme = normalizedTheme;
+}
+
+function createEmptySevereBackgroundThemeState() {
+    return {
+        general: [],
+        snow: [],
+        fire: [],
+        wind: [],
+        storm: [],
+        heat: [],
+        tornado: [],
+        hurricane: [],
+        flood: []
+    };
+}
+
+function getSevereBackgroundCategoryFromName(name) {
+    const normalized = String(name || '').toLowerCase();
+    if (/tornado|tornado warning|tornado emergency/.test(normalized)) return 'tornado';
+    if (/hurricane|tropical storm/.test(normalized)) return 'hurricane';
+    if (/coastal flood|flash flood|river flood|storm surge|flood/.test(normalized)) return 'flood';
+    if (/high wind|extreme wind|gale|hurricane force wind|special marine warning|wind/.test(normalized)) return 'wind';
+    if (/blizzard|winter storm|ice storm|snow squall|freeze warning|extreme cold|snow/.test(normalized)) return 'snow';
+    if (/red flag|fire/.test(normalized)) return 'fire';
+    return '';
+}
+
+function getSevereBackgroundCategoryFromAlertText(alertsText) {
+    const normalized = String(alertsText || '').toLowerCase();
+    if (!normalized || normalized === 'none') {
+        return '';
+    }
+
+    const alertRules = [
+        ['tornado', /(tornado emergency|tornado warning)/],
+        ['hurricane', /(hurricane warning|tropical storm warning)/],
+        ['flood', /(coastal flood warning|flash flood warning|river flood warning|storm surge warning)/],
+        ['wind', /(high wind warning|extreme wind warning|gale warning|hurricane force wind warning|special marine warning)/],
+        ['storm', /(severe thunderstorm warning|storm warning)/],
+        ['snow', /(blizzard warning|winter storm warning|ice storm warning|snow squall warning|freeze warning|extreme cold warning)/],
+        ['fire', /(red flag warning)/],
+        ['heat', /(heat warning)/]
+    ];
+
+    for (const [category, pattern] of alertRules) {
+        if (pattern.test(normalized)) {
+            return category;
+        }
+    }
+
+    return '';
+}
+
+function addPathsToSevereBackgroundState(themeState, categoryKey, paths) {
+    if (!themeState || !themeState.severe || !Array.isArray(paths)) {
+        return;
+    }
+
+    const normalizedCategory = SEVERE_BACKGROUND_CATEGORY_KEYS.includes(categoryKey) ? categoryKey : 'general';
+    const existing = new Set(themeState.severe[normalizedCategory] || []);
+    paths.forEach(path => {
+        if (isImageAssetPath(path)) {
+            existing.add(path);
+        }
+    });
+    themeState.severe[normalizedCategory] = Array.from(existing);
 }
 
 function setAudioMuted(nextMuted, options = {}) {
@@ -209,8 +494,24 @@ if (settingsButton) {
     settingsButton.addEventListener('click', openSettingsModal);
 }
 
+if (settingsOpenDebugButton) {
+    settingsOpenDebugButton.addEventListener('click', () => {
+        closeSettingsModal();
+        openDebugModal();
+    });
+}
+
 if (settingsSearchButton) {
     settingsSearchButton.addEventListener('click', () => submitWeatherSearch(settingsCityInput));
+}
+
+setRandomCityOnIntroWrapEnabled(localStorage.getItem('random-city-on-intro-wrap') === 'true');
+
+if (settingsRandomCityToggle) {
+    settingsRandomCityToggle.checked = randomCityOnIntroWrapEnabled;
+    settingsRandomCityToggle.addEventListener('change', event => {
+        setRandomCityOnIntroWrapEnabled(event.target.checked);
+    });
 }
 
 if (settingsAirNowApiKeyInput) {
@@ -222,6 +523,10 @@ if (settingsAirNowApiKeyInput) {
 
 settingsCloseButtons.forEach(button => {
     button.addEventListener('click', closeSettingsModal);
+});
+
+debugCloseButtons.forEach(button => {
+    button.addEventListener('click', closeDebugModal);
 });
 
 [cityInput, settingsCityInput].forEach(input => {
@@ -237,7 +542,16 @@ settingsCloseButtons.forEach(button => {
 });
 
 document.addEventListener('keydown', event => {
-    if (event.key === 'Escape' && settingsModal && !settingsModal.hidden) {
+    if (event.key !== 'Escape') {
+        return;
+    }
+
+    if (debugModal && !debugModal.hidden) {
+        closeDebugModal();
+        return;
+    }
+
+    if (settingsModal && !settingsModal.hidden) {
         closeSettingsModal();
     }
 });
@@ -574,12 +888,106 @@ function switchToScene(sceneId) {
     updateActiveTabCapPosition();
 }
 
-function renderSettingsSceneButtons() {
-    if (!settingsSceneButtons) {
+function getSevereBackgroundCandidates(weatherValues = null, includeAllSevere = false) {
+    const severeTheme = discoveredBackgroundAssetsByTheme.severe || createEmptySevereBackgroundThemeState();
+    const categoryKey = includeAllSevere ? '' : getSevereBackgroundCategoryFromAlertText(weatherValues?.alerts ?? lastWeatherValuesForTheme?.alerts);
+    const categoryOrder = categoryKey
+        ? [categoryKey, 'general']
+        : ['general', 'tornado', 'hurricane', 'flood', 'wind', 'storm', 'snow', 'fire', 'heat'];
+
+    if (categoryKey === 'storm') {
+        return getBackgroundCandidatesForTheme('storm', weatherValues);
+    }
+
+    if (categoryKey === 'heat') {
+        return getBackgroundCandidatesForTheme('day', weatherValues);
+    }
+
+    const candidates = [];
+    const seen = new Set();
+
+    categoryOrder.forEach(key => {
+        (severeTheme[key] || []).forEach(path => {
+            if (isImageAssetPath(path) && !seen.has(path)) {
+                seen.add(path);
+                candidates.push(path);
+            }
+        });
+    });
+
+    if (candidates.length > 0) {
+        return candidates;
+    }
+
+    Object.keys(severeTheme).forEach(key => {
+        (severeTheme[key] || []).forEach(path => {
+            if (isImageAssetPath(path) && !seen.has(path)) {
+                seen.add(path);
+                candidates.push(path);
+            }
+        });
+    });
+
+    return candidates;
+}
+
+function getBackgroundCandidatesForTheme(themeKey, weatherValues = null, includeAllSevere = false) {
+    const normalizedTheme = String(themeKey || '').trim().toLowerCase();
+    if (!VISUAL_THEME_KEYS.includes(normalizedTheme)) {
+        return [];
+    }
+
+    if (normalizedTheme === 'severe') {
+        return getSevereBackgroundCandidates(weatherValues, includeAllSevere);
+    }
+
+    const files = discoveredBackgroundAssetsByTheme[normalizedTheme] || [];
+    const unique = Array.from(new Set(files.filter(path => isImageAssetPath(path))));
+    return unique;
+}
+
+function renderDebugThemeState() {
+    if (debugThemeSelect) {
+        debugThemeSelect.value = debugThemeOverrideKey || '';
+    }
+
+    if (!debugBackgroundSelect) {
         return;
     }
 
-    settingsSceneButtons.innerHTML = '';
+    const activeTheme = getActiveVisualThemeKey(lastWeatherValuesForTheme);
+    const themeForList = debugThemeOverrideKey || activeTheme;
+    const options = getBackgroundCandidatesForTheme(themeForList, lastWeatherValuesForTheme, true);
+    const normalizedCurrentBackground = String(debugBackgroundOverridePath || '');
+
+    debugBackgroundSelect.innerHTML = '';
+
+    const autoOption = document.createElement('option');
+    autoOption.value = '';
+    autoOption.textContent = 'Auto Random';
+    debugBackgroundSelect.appendChild(autoOption);
+
+    options.forEach(path => {
+        const option = document.createElement('option');
+        option.value = path;
+        option.textContent = path;
+        debugBackgroundSelect.appendChild(option);
+    });
+
+    if (normalizedCurrentBackground && options.includes(normalizedCurrentBackground)) {
+        debugBackgroundSelect.value = normalizedCurrentBackground;
+        return;
+    }
+
+    debugBackgroundSelect.value = '';
+}
+
+function renderDebugSceneButtons() {
+    if (!debugSceneButtons) {
+        return;
+    }
+
+    debugSceneButtons.innerHTML = '';
 
     settingsSceneOrder.forEach(sceneId => {
         const button = document.createElement('button');
@@ -587,7 +995,7 @@ function renderSettingsSceneButtons() {
         button.className = 'settings-scene-button';
         button.dataset.sceneId = sceneId;
         button.textContent = formatSceneLabel(sceneId);
-        settingsSceneButtons.appendChild(button);
+        debugSceneButtons.appendChild(button);
     });
 }
 
@@ -674,8 +1082,8 @@ function switchToQueueIndex(queueIndex) {
     updateActiveTabCapPosition();
 }
 
-if (settingsSceneButtons) {
-    settingsSceneButtons.addEventListener('click', event => {
+if (debugSceneButtons) {
+    debugSceneButtons.addEventListener('click', event => {
         const target = event.target.closest('.settings-scene-button');
         if (!target) {
             return;
@@ -687,7 +1095,26 @@ if (settingsSceneButtons) {
         }
 
         switchToScene(sceneId);
-        closeSettingsModal();
+        closeDebugModal();
+    });
+}
+
+if (debugThemeSelect) {
+    debugThemeSelect.addEventListener('change', event => {
+        const requestedTheme = String(event.target.value || '').trim().toLowerCase();
+        debugThemeOverrideKey = VISUAL_THEME_KEYS.includes(requestedTheme) ? requestedTheme : '';
+        debugBackgroundOverridePath = '';
+        applySceneTheme(getActiveVisualThemeKey(lastWeatherValuesForTheme));
+        renderDebugThemeState();
+        applyDynamicSceneBackgrounds(lastWeatherValuesForTheme || {});
+    });
+}
+
+if (debugBackgroundSelect) {
+    debugBackgroundSelect.addEventListener('change', event => {
+        const requestedBackground = normalizeAssetPath(event.target.value || '');
+        debugBackgroundOverridePath = requestedBackground;
+        applyDynamicSceneBackgrounds(lastWeatherValuesForTheme || {});
     });
 }
 
@@ -707,11 +1134,7 @@ function advanceQueue() {
     if (wrapped) {
         buildPlaybackQueue();
         switchToQueueIndex(0);
-
-        if (lastSearchedCity) {
-            getWeather(lastSearchedCity);
-        }
-
+        handleIntroWrapCityRefresh();
         return;
     }
 
@@ -744,7 +1167,7 @@ function setAutoAdvanceEnabled(enabled) {
 }
 
 buildPlaybackQueue();
-renderSettingsSceneButtons();
+renderDebugSceneButtons();
 switchToQueueIndex(0);
 setAutoAdvanceEnabled(true);
 
@@ -777,8 +1200,10 @@ setInterval(() => {
 registerAudioGestureUnlock();
 setAudioMuted(isAudioMuted, { persist: false });
 setWelcomeSceneMode(false);
+applySceneTheme('day');
 ensureRuntimeAssetsLoaded().then(() => {
     applyWelcomeSceneBackground();
+    renderDebugThemeState();
 });
 
 function normalizeAssetPath(value) {
@@ -886,11 +1311,62 @@ function getConditionBucket(conditionText) {
 
 function getSegmentFromFolderName(folderName) {
     const normalized = String(folderName || '').toLowerCase();
+    if (normalized.includes('sunrise')) return 'morning';
     if (normalized.includes('morning')) return 'morning';
     if (normalized.includes('sunset') || normalized.includes('evening')) return 'sunset';
     if (normalized.includes('night')) return 'night';
     if (normalized.includes('day')) return 'day';
     return null;
+}
+
+function getVisualThemeFromFolderName(folderName) {
+    const normalized = String(folderName || '').toLowerCase();
+    if (normalized.includes('severe')) return 'severe';
+    if (normalized.includes('clear')) return 'clear';
+    if (normalized.includes('sunrise') || normalized.includes('morning')) return 'sunrise';
+    if (normalized.includes('sunset') || normalized.includes('evening')) return 'sunset';
+    if (normalized.includes('night')) return 'night';
+    if (normalized.includes('day')) return 'day';
+    if (normalized.includes('rain')) return 'rain';
+    if (normalized.includes('storm') || normalized.includes('thunder')) return 'storm';
+    if (normalized.includes('fog') || normalized.includes('mist') || normalized.includes('haze')) return 'fog';
+    if (normalized.includes('snow') || normalized.includes('blizzard')) return 'snow';
+    if (normalized.includes('cloud')) return 'cloudy';
+    return null;
+}
+
+function createEmptyBackgroundThemeState() {
+    return {
+        sunrise: [],
+        day: [],
+        sunset: [],
+        rain: [],
+        cloudy: [],
+        storm: [],
+        fog: [],
+        snow: [],
+        night: [],
+        severe: createEmptySevereBackgroundThemeState()
+    };
+}
+
+function addPathsToThemeState(themeState, themeKey, paths) {
+    if (!themeState || !VISUAL_THEME_KEYS.includes(themeKey) || !Array.isArray(paths)) {
+        return;
+    }
+
+    if (themeKey === 'severe') {
+        addPathsToSevereBackgroundState(themeState, 'general', paths);
+        return;
+    }
+
+    const existing = new Set(themeState[themeKey] || []);
+    paths.forEach(path => {
+        if (isImageAssetPath(path)) {
+            existing.add(path);
+        }
+    });
+    themeState[themeKey] = Array.from(existing);
 }
 
 function getSeasonFromFolderName(folderName) {
@@ -940,11 +1416,65 @@ async function discoverBackgroundAssets() {
         sunset: { folderPath: '', direct: [], byCondition: {} },
         night: { folderPath: '', direct: [], byCondition: {} }
     };
+    const themeState = createEmptyBackgroundThemeState();
 
     const timeFolderEntries = (await listDirectoryEntries('Backgrounds'))
         .filter(entry => entry.isDirectory);
 
     for (const entry of timeFolderEntries) {
+        const visualTheme = getVisualThemeFromFolderName(entry.name);
+        if (visualTheme === 'clear') {
+            const clearChildren = await listDirectoryEntries(entry.path);
+            const clearDirectFiles = clearChildren
+                .filter(child => !child.isDirectory && isImageAssetPath(child.path))
+                .map(child => child.path);
+            addPathsToThemeState(themeState, 'day', clearDirectFiles);
+
+            for (const child of clearChildren.filter(item => item.isDirectory)) {
+                const childTheme = getVisualThemeFromFolderName(child.name);
+                if (!childTheme || !VISUAL_THEME_KEYS.includes(childTheme)) {
+                    continue;
+                }
+
+                const files = (await listDirectoryFiles(child.path, false)).filter(isImageAssetPath);
+                addPathsToThemeState(themeState, childTheme, files);
+
+                const segmentKey = getSegmentFromFolderName(child.name);
+                if (segmentKey && segmentState[segmentKey]) {
+                    segmentState[segmentKey].folderPath = child.path;
+                    segmentState[segmentKey].direct.push(...files);
+                }
+            }
+
+            continue;
+        }
+
+        if (visualTheme === 'severe') {
+            const severeChildren = await listDirectoryEntries(entry.path);
+            const severeDirectFiles = severeChildren
+                .filter(child => !child.isDirectory && isImageAssetPath(child.path))
+                .map(child => child.path);
+            addPathsToSevereBackgroundState(themeState, 'general', severeDirectFiles);
+
+            for (const child of severeChildren.filter(item => item.isDirectory)) {
+                const categoryKey = getSevereBackgroundCategoryFromName(child.name);
+                if (!categoryKey) {
+                    continue;
+                }
+
+                const files = (await listDirectoryFiles(child.path, true)).filter(isImageAssetPath);
+                addPathsToSevereBackgroundState(themeState, categoryKey, files);
+            }
+
+            continue;
+        }
+
+        if (visualTheme && ['rain', 'cloudy', 'storm', 'fog', 'snow'].includes(visualTheme)) {
+            const weatherThemeFiles = (await listDirectoryFiles(entry.path, true)).filter(isImageAssetPath);
+            addPathsToThemeState(themeState, visualTheme, weatherThemeFiles);
+            continue;
+        }
+
         const segmentKey = getSegmentFromFolderName(entry.name);
         if (!segmentKey || !BACKGROUND_SEGMENT_KEYS.includes(segmentKey)) {
             continue;
@@ -955,6 +1485,7 @@ async function discoverBackgroundAssets() {
         segmentState[segmentKey].direct = children
             .filter(child => !child.isDirectory && isImageAssetPath(child.path))
             .map(child => child.path);
+        addPathsToThemeState(themeState, getVisualThemeFromTimeSegment(segmentKey), segmentState[segmentKey].direct);
 
         for (const child of children.filter(item => item.isDirectory)) {
             const bucket = getConditionBucket(child.name);
@@ -964,10 +1495,17 @@ async function discoverBackgroundAssets() {
             }
 
             segmentState[segmentKey].byCondition[bucket].push(...files);
+            const conditionTheme = getVisualThemeFromConditionBucket(bucket);
+            if (conditionTheme) {
+                addPathsToThemeState(themeState, conditionTheme, files);
+            }
         }
     }
 
-    return segmentState;
+    return {
+        segmentState,
+        themeState
+    };
 }
 
 async function discoverWelcomeAssets() {
@@ -1022,13 +1560,20 @@ function getTracksForMode(mode) {
 }
 
 function pickSceneBackgroundByWeather(weatherValues) {
+    if (debugBackgroundOverridePath) {
+        return debugBackgroundOverridePath;
+    }
+
     const values = weatherValues || {};
+    const activeTheme = getActiveVisualThemeKey(values);
+    const themeCandidates = getBackgroundCandidatesForTheme(activeTheme, values);
+    if (themeCandidates.length > 0) {
+        return pickRandomArrayItem(themeCandidates) || DEFAULT_SCENE_BACKGROUND_PATH;
+    }
+
     const segmentKey = getCurrentTimeSegment(values.sunriseIso, values.sunsetIso);
-    const conditionBucket = getConditionBucket(values.conditionCurrent);
     const segmentAssets = discoveredBackgroundAssetsBySegment[segmentKey];
     const fallbackList = [
-        ...(segmentAssets?.byCondition?.[conditionBucket] || []),
-        ...(segmentAssets?.byCondition?.[(conditionBucket === 'stormy' ? 'rainy' : 'stormy')] || []),
         ...(segmentAssets?.direct || [])
     ];
 
@@ -1098,11 +1643,15 @@ function setWelcomeSceneMode(useIntro) {
 }
 
 async function discoverRuntimeAssets() {
-    const [marineFiles, winterFiles, normalTracks, watchTracks, warningTracks, welcomeTracks, backgroundAssets, welcomeAssets] = await Promise.all([
+    const manifestLoaded = await loadRuntimeAssetsFromManifest();
+    if (manifestLoaded) {
+        return;
+    }
+
+    const [marineFiles, winterFiles, normalTracks, warningTracks, welcomeTracks, backgroundDiscovery, welcomeAssets] = await Promise.all([
         listDirectoryFiles('marine', false),
         listDirectoryFiles('winter', true),
         listDirectoryFiles('music/normal', false),
-        listDirectoryFiles('music/watch', false),
         listDirectoryFiles('music/warning', false),
         listDirectoryFiles('music/welcome', false),
         discoverBackgroundAssets(),
@@ -1113,12 +1662,188 @@ async function discoverRuntimeAssets() {
     discoveredWinterBodyImagePaths = winterFiles.filter(isImageAssetPath);
     discoveredMusicTracksByAlertMode = {
         normal: normalTracks.filter(isAudioAssetPath),
-        watch: watchTracks.filter(isAudioAssetPath),
         warning: warningTracks.filter(isAudioAssetPath),
         welcome: welcomeTracks.filter(isAudioAssetPath)
     };
-    discoveredBackgroundAssetsBySegment = backgroundAssets;
+    discoveredBackgroundAssetsBySegment = backgroundDiscovery.segmentState;
+    discoveredBackgroundAssetsByTheme = backgroundDiscovery.themeState;
     discoveredWelcomeAssetsBySegment = welcomeAssets;
+}
+
+function buildThemeStateFromSegmentState(segmentState) {
+    const nextThemeState = createEmptyBackgroundThemeState();
+    const safeSegmentState = segmentState && typeof segmentState === 'object' ? segmentState : {};
+
+    Object.entries(safeSegmentState).forEach(([segmentKey, segmentAssets]) => {
+        const timeTheme = getVisualThemeFromTimeSegment(segmentKey);
+        addPathsToThemeState(nextThemeState, timeTheme, segmentAssets?.direct || []);
+
+        const byCondition = segmentAssets?.byCondition && typeof segmentAssets.byCondition === 'object'
+            ? segmentAssets.byCondition
+            : {};
+
+        Object.keys(byCondition).forEach(conditionKey => {
+            const themeKey = getVisualThemeFromConditionBucket(conditionKey);
+            if (!themeKey) {
+                return;
+            }
+
+            addPathsToThemeState(nextThemeState, themeKey, byCondition[conditionKey]);
+        });
+    });
+
+    return nextThemeState;
+}
+
+function normalizeSegmentState(sourceState, valueKey) {
+    const safeSource = sourceState && typeof sourceState === 'object' ? sourceState : {};
+    return {
+        morning: safeSource.morning && typeof safeSource.morning === 'object'
+            ? safeSource.morning
+            : { folderPath: '', direct: [], [valueKey]: {} },
+        day: safeSource.day && typeof safeSource.day === 'object'
+            ? safeSource.day
+            : { folderPath: '', direct: [], [valueKey]: {} },
+        sunset: safeSource.sunset && typeof safeSource.sunset === 'object'
+            ? safeSource.sunset
+            : { folderPath: '', direct: [], [valueKey]: {} },
+        night: safeSource.night && typeof safeSource.night === 'object'
+            ? safeSource.night
+            : { folderPath: '', direct: [], [valueKey]: {} }
+    };
+}
+
+function toWebAssetPath(value) {
+    const normalized = normalizeAssetPath(value);
+    if (!normalized) {
+        return '';
+    }
+
+    const withoutScheme = normalized.replace(/^file:\/+/i, '');
+    const withoutDrive = withoutScheme.replace(/^[a-z]:\//i, '');
+    const markerMatch = withoutDrive.match(/(?:^|\/)(Backgrounds|Welcome|music|marine|winter)\/.*/i);
+    if (markerMatch) {
+        return markerMatch[0].replace(/^\//, '');
+    }
+
+    return normalized;
+}
+
+function sanitizeAssetPathList(paths, validator) {
+    if (!Array.isArray(paths)) {
+        return [];
+    }
+
+    return paths
+        .map(toWebAssetPath)
+        .filter(path => path && (!validator || validator(path)));
+}
+
+function sanitizeSegmentAssetState(segmentState, childKey, validator) {
+    const safeSegment = segmentState && typeof segmentState === 'object' ? segmentState : {};
+    const safeChildren = safeSegment[childKey] && typeof safeSegment[childKey] === 'object'
+        ? safeSegment[childKey]
+        : {};
+
+    const nextChildren = {};
+    Object.keys(safeChildren).forEach(key => {
+        nextChildren[key] = sanitizeAssetPathList(safeChildren[key], validator);
+    });
+
+    return {
+        folderPath: toWebAssetPath(safeSegment.folderPath || ''),
+        direct: sanitizeAssetPathList(safeSegment.direct, validator),
+        [childKey]: nextChildren
+    };
+}
+
+function applyRuntimeAssetsFromManifest(manifest) {
+    if (!manifest || typeof manifest !== 'object') {
+        return false;
+    }
+
+    const nextMarineImages = sanitizeAssetPathList(manifest.marineImages, isImageAssetPath);
+    const nextWinterImages = sanitizeAssetPathList(manifest.winterImages, isImageAssetPath);
+
+    const nextMusic = manifest.music && typeof manifest.music === 'object' ? manifest.music : {};
+    const normalizedBackgrounds = normalizeSegmentState(manifest.backgrounds, 'byCondition');
+    const normalizedWelcome = normalizeSegmentState(manifest.welcome, 'bySeason');
+    const manifestBackgroundThemes = manifest.backgroundThemes && typeof manifest.backgroundThemes === 'object'
+        ? manifest.backgroundThemes
+        : null;
+
+    const nextBackgrounds = {
+        morning: sanitizeSegmentAssetState(normalizedBackgrounds.morning, 'byCondition', isImageAssetPath),
+        day: sanitizeSegmentAssetState(normalizedBackgrounds.day, 'byCondition', isImageAssetPath),
+        sunset: sanitizeSegmentAssetState(normalizedBackgrounds.sunset, 'byCondition', isImageAssetPath),
+        night: sanitizeSegmentAssetState(normalizedBackgrounds.night, 'byCondition', isImageAssetPath)
+    };
+    const nextWelcome = {
+        morning: sanitizeSegmentAssetState(normalizedWelcome.morning, 'bySeason', isImageAssetPath),
+        day: sanitizeSegmentAssetState(normalizedWelcome.day, 'bySeason', isImageAssetPath),
+        sunset: sanitizeSegmentAssetState(normalizedWelcome.sunset, 'bySeason', isImageAssetPath),
+        night: sanitizeSegmentAssetState(normalizedWelcome.night, 'bySeason', isImageAssetPath)
+    };
+    const nextThemeState = buildThemeStateFromSegmentState(nextBackgrounds);
+    if (manifestBackgroundThemes) {
+        VISUAL_THEME_KEYS.forEach(themeKey => {
+            if (themeKey === 'severe') {
+                const severeTheme = manifestBackgroundThemes.severe;
+                if (Array.isArray(severeTheme)) {
+                    addPathsToSevereBackgroundState(nextThemeState, 'general', sanitizeAssetPathList(severeTheme, isImageAssetPath));
+                } else if (severeTheme && typeof severeTheme === 'object') {
+                    SEVERE_BACKGROUND_CATEGORY_KEYS.forEach(categoryKey => {
+                        const themedPaths = sanitizeAssetPathList(severeTheme[categoryKey], isImageAssetPath);
+                        if (themedPaths.length > 0) {
+                            addPathsToSevereBackgroundState(nextThemeState, categoryKey, themedPaths);
+                        }
+                    });
+                }
+                return;
+            }
+
+            const themedPaths = sanitizeAssetPathList(manifestBackgroundThemes[themeKey], isImageAssetPath);
+            if (themedPaths.length > 0) {
+                addPathsToThemeState(nextThemeState, themeKey, themedPaths);
+            }
+        });
+    }
+
+    discoveredMarineBodyImagePaths = nextMarineImages;
+    discoveredWinterBodyImagePaths = nextWinterImages;
+    discoveredMusicTracksByAlertMode = {
+        normal: sanitizeAssetPathList(nextMusic.normal, isAudioAssetPath),
+        warning: sanitizeAssetPathList(nextMusic.warning, isAudioAssetPath),
+        welcome: sanitizeAssetPathList(nextMusic.welcome, isAudioAssetPath)
+    };
+    discoveredBackgroundAssetsBySegment = nextBackgrounds;
+    discoveredBackgroundAssetsByTheme = nextThemeState;
+    discoveredWelcomeAssetsBySegment = nextWelcome;
+
+    return true;
+}
+
+async function loadRuntimeAssetsFromManifest() {
+    try {
+        const response = await fetch(ASSET_MANIFEST_PATH, {
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) {
+            return false;
+        }
+
+        const manifest = await response.json();
+        const applied = applyRuntimeAssetsFromManifest(manifest);
+        if (!applied) {
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        return false;
+    }
 }
 
 function ensureRuntimeAssetsLoaded() {
@@ -1503,6 +2228,13 @@ async function getWeather(city) {
         return;
     }
 
+    if (isWeatherRequestInFlight) {
+        console.log('[WEATHER] Request already in progress, skipping duplicate search.');
+        return;
+    }
+
+    isWeatherRequestInFlight = true;
+
     lastSearchedCity = city;
 
     if (cityInput) {
@@ -1563,6 +2295,8 @@ async function getWeather(city) {
     } catch (error) {
         console.error('Error:', error);
         alert('Error fetching weather data');
+    } finally {
+        isWeatherRequestInFlight = false;
     }
 }
 
@@ -3218,7 +3952,7 @@ function isWaningFromSnapshots(snapshots, referenceDate) {
     return Number(nextSnapshot.illuminationPercent) < Number(nowSnapshot.illuminationPercent);
 }
 
-async function fetchJsonWithCorsFallback(url, apiLabel) {
+async function fetchJsonWithCorsFallback(url, apiLabel, options = {}) {
     // Build the proxy URL for each candidate service.
     function buildProxyUrl(service, targetUrl) {
         const encoded = encodeURIComponent(targetUrl);
@@ -3231,24 +3965,29 @@ async function fetchJsonWithCorsFallback(url, apiLabel) {
         }
     }
 
+    const skipDirect = Boolean(options?.skipDirect);
+    const proxyServices = Array.isArray(options?.proxyServices) && options.proxyServices.length > 0
+        ? options.proxyServices
+        : ['allorigins', 'corsproxy', 'codetabs', 'thingproxy'];
+
     // Attempt a direct fetch first (works when the server sends CORS headers).
     let directError = null;
-    try {
-        const directResponse = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
+    if (!skipDirect) {
+        try {
+            const directResponse = await fetch(url, {
+                headers: { 'Accept': 'application/json' }
+            });
 
-        if (!directResponse.ok) {
-            throw new Error(`${apiLabel} direct request failed: ${directResponse.status}`);
+            if (!directResponse.ok) {
+                throw new Error(`${apiLabel} direct request failed: ${directResponse.status}`);
+            }
+
+            return await directResponse.json();
+        } catch (err) {
+            directError = err;
+            console.warn(`[CORS] ${apiLabel} direct fetch failed, trying proxies...`, err.message);
         }
-
-        return await directResponse.json();
-    } catch (err) {
-        directError = err;
-        console.warn(`[CORS] ${apiLabel} direct fetch failed, trying proxies…`, err.message);
     }
-
-    const proxyServices = ['allorigins', 'corsproxy', 'codetabs', 'thingproxy'];
 
     for (const service of proxyServices) {
         const proxyUrl = buildProxyUrl(service, url);
@@ -3279,7 +4018,28 @@ async function fetchJsonWithCorsFallback(url, apiLabel) {
         }
     }
 
-    throw directError;
+    throw directError || new Error(`${apiLabel} failed via configured fallbacks`);
+}
+
+function canAttemptPollenProxy() {
+    if (pollenProxyUnavailableUntilMs > 0 && Date.now() < pollenProxyUnavailableUntilMs) {
+        if (!hasLoggedPollenProxyCooldown) {
+            const retryAt = new Date(pollenProxyUnavailableUntilMs).toLocaleTimeString();
+            console.warn(`[API] Skipping pollen requests until ${retryAt} because local proxy is unreachable.`);
+            hasLoggedPollenProxyCooldown = true;
+        }
+
+        return false;
+    }
+
+    pollenProxyUnavailableUntilMs = 0;
+    hasLoggedPollenProxyCooldown = false;
+    return true;
+}
+
+function markPollenProxyUnavailable() {
+    pollenProxyUnavailableUntilMs = Date.now() + POLLEN_PROXY_RETRY_COOLDOWN_MS;
+    hasLoggedPollenProxyCooldown = false;
 }
 
 async function fetchLunarData(lat, lon) {
@@ -3292,7 +4052,10 @@ async function fetchLunarData(lat, lon) {
 
     try {
         const [nasaResult, usnoResult] = await Promise.allSettled([
-            fetchJsonWithCorsFallback(nasaHorizonsUrl, 'NASA Horizons'),
+            fetchJsonWithCorsFallback(nasaHorizonsUrl, 'NASA Horizons', {
+                skipDirect: true,
+                proxyServices: ['corsproxy']
+            }),
             fetchJsonWithCorsFallback(usnoUrl, 'USNO phases')
         ]);
 
@@ -3847,16 +4610,18 @@ function clearIntroSceneSequence() {
 }
 
 function getIntroGreeting(sunriseIso = null, sunsetIso = null) {
-    const segment = getCurrentTimeSegment(sunriseIso, sunsetIso);
-    if (segment === 'morning') {
+    const now = new Date();
+    const hour = now.getHours();
+
+    if (hour < 12) {
         return 'Good Morning';
     }
 
-    if (segment === 'day') {
+    if (hour < 18) {
         return 'Good Afternoon';
     }
 
-    if (segment === 'sunset') {
+    if (hour < 22) {
         return 'Good Evening';
     }
 
@@ -3940,15 +4705,43 @@ function getAlertMusicMode(alertsText) {
         return 'normal';
     }
 
+    if (isSevereAlertActive(normalized)) {
+        return 'warning';
+    }
+
     if (normalized.includes('warning')) {
         return 'warning';
     }
 
-    if (normalized.includes('watch')) {
-        return 'watch';
+    return 'normal';
+}
+
+function isSevereAlertActive(alertsText) {
+    return Boolean(getSevereBackgroundCategoryFromAlertText(alertsText));
+}
+
+function queueNextBackgroundMusicTrack() {
+    if (isAudioMuted || !hasAudioGesture || !selectedAlertMusicMode) {
+        return;
     }
 
-    return 'normal';
+    const nextTracks = getTracksForMode(selectedAlertMusicMode);
+    if (!Array.isArray(nextTracks) || nextTracks.length === 0) {
+        return;
+    }
+
+    let nextTrack = pickRandomArrayItem(nextTracks) || '';
+    if (nextTracks.length > 1 && nextTrack === selectedBackgroundMusicTrack) {
+        const alternateTracks = nextTracks.filter(track => track !== selectedBackgroundMusicTrack);
+        nextTrack = pickRandomArrayItem(alternateTracks) || nextTrack;
+    }
+
+    if (!nextTrack) {
+        return;
+    }
+
+    selectedBackgroundMusicTrack = nextTrack;
+    startBackgroundMusicFromSelectedTrack({ forceTransition: true });
 }
 
 function chooseBackgroundTrackForAlerts(alertsText) {
@@ -3982,9 +4775,12 @@ function ensureBackgroundMusicAudio() {
 
     const audio = new Audio();
     audio.preload = 'auto';
-    audio.loop = true;
+    audio.loop = false;
     audio.volume = 0;
     audio.muted = isAudioMuted;
+    audio.addEventListener('ended', () => {
+        queueNextBackgroundMusicTrack();
+    });
     backgroundMusicAudio = audio;
     return backgroundMusicAudio;
 }
@@ -4577,12 +5373,15 @@ function animateAirScalePointer(aqiRaw) {
 function displayWeather(weatherValues, cityName) {
     const conditionIconPath = getConditionIconPath(weatherValues.conditionCurrent);
     const radarLoopPane = document.getElementById('radar-loop-pane');
+    lastWeatherValuesForTheme = weatherValues;
     latestSceneAvailability = createSceneAvailabilityFromWeather(weatherValues);
     rebuildPlaybackQueueForCurrentData();
     setWelcomeSceneMode(true);
+    chooseBackgroundTrackForAlerts(weatherValues.alerts);
+    applySceneTheme(getActiveVisualThemeKey(weatherValues));
     applyWelcomeSceneBackground(weatherValues);
     applyDynamicSceneBackgrounds(weatherValues);
-    chooseBackgroundTrackForAlerts(weatherValues.alerts);
+    renderDebugThemeState();
 
     if (radarLoopPane) {
         const radarLoopUrl = String(weatherValues.radarLoopGifUrl || '').trim();
@@ -5071,6 +5870,10 @@ async function fetchPollenCurrentForecast(zipCode, lat, lon) {
         return null;
     }
 
+    if (!canAttemptPollenProxy()) {
+        return null;
+    }
+
     const proxyUrls = [];
     if (hasZip) {
         proxyUrls.push(`${POLLEN_PROXY_BASE_URL}/pollen/outlook?zip=${encodeURIComponent(normalizedZip)}`);
@@ -5097,29 +5900,12 @@ async function fetchPollenCurrentForecast(zipCode, lat, lon) {
             }
         } catch (proxyError) {
             console.warn(`[API] Local pollen proxy unavailable for ${proxyUrl}:`, proxyError);
+            markPollenProxyUnavailable();
+            return null;
         }
     }
 
-    const directUrls = [];
-    if (hasZip) {
-        directUrls.push(`https://www.pollen.com/api/forecast/outlook/${encodeURIComponent(normalizedZip)}`);
-    }
-    if (hasCoords) {
-        directUrls.push(`https://www.pollen.com/api/forecast/outlook/${encodeURIComponent(latNum)}/${encodeURIComponent(lonNum)}/`);
-    }
-
-    for (const directUrl of directUrls) {
-        try {
-            const directPayload = await fetchJsonWithCorsFallback(directUrl, 'Pollen.com outlook');
-            if (directPayload && typeof directPayload === 'object') {
-                return directPayload;
-            }
-        } catch (directError) {
-            console.warn(`[API] Pollen.com direct/proxy fallback failed for ${directUrl}:`, directError);
-        }
-    }
-
-    console.warn('[API] Pollen.com unavailable after local proxy and direct fallback attempts.');
+    console.warn('[API] Pollen data unavailable from local proxy; skipping public CORS fallbacks.');
     return null;
 }
 
@@ -5127,6 +5913,10 @@ async function fetchPollenExtendedForecast(zipCode) {
     const normalizedZip = String(zipCode || '').trim();
     if (!/^\d{5}$/.test(normalizedZip)) {
         console.warn('[API] Pollen extended skipped: no ZIP code available.');
+        return null;
+    }
+
+    if (!canAttemptPollenProxy()) {
         return null;
     }
 
@@ -5148,17 +5938,21 @@ async function fetchPollenExtendedForecast(zipCode) {
         }
     } catch (proxyError) {
         console.warn('[API] Local pollen extended proxy unavailable:', proxyError);
+        markPollenProxyUnavailable();
+        return null;
     }
 
-    const directUrl = `https://www.pollen.com/api/forecast/extended/pollen/${encodeURIComponent(normalizedZip)}`;
-    try {
-        const directPayload = await fetchJsonWithCorsFallback(directUrl, 'Pollen.com extended outlook');
-        if (directPayload && typeof directPayload === 'object') {
-            return directPayload;
-        }
-    } catch (directError) {
-        console.warn('[API] Pollen extended direct/proxy fallback failed:', directError);
-    }
-
+    console.warn('[API] Pollen extended data unavailable from local proxy; skipping public CORS fallbacks.');
     return null;
+}
+
+function handleIntroWrapCityRefresh() {
+    if (randomCityOnIntroWrapEnabled) {
+        searchRandomCity();
+        return;
+    }
+
+    if (lastSearchedCity) {
+        getWeather(lastSearchedCity);
+    }
 }

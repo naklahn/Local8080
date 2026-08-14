@@ -1,0 +1,233 @@
+﻿{
+    "marineImages":  [
+                         "marine/IMG_6823.JPEG",
+                         "marine/IMG_6906.JPEG",
+                         "marine/IMG_7168.JPEG"
+                     ],
+    "winterImages":  [
+                         "winter/IMG_9545.JPEG"
+                     ],
+    "music":  {
+                  "normal":  [
+                                 "music/normal/Airport Lounge - Disco Ultralounge by Kevin MacLeod.mp3",
+                                 "music/normal/Bet On It - Silent Partner.mp3",
+                                 "music/normal/Biggie - ALBIS.mp3",
+                                 "music/normal/Deep Hat - Vibe Tracks.mp3",
+                                 "music/normal/Entering Graciously.mp3",
+                                 "music/normal/Ersatz Bossa - John Deley and the 41 Players.mp3",
+                                 "music/normal/Foundation - Vibe Tracks.mp3",
+                                 "music/normal/Restored Soul - Keffy Kay.mp3",
+                                 "music/normal/Scandinavianz - Sunset Beach.mp3"
+                             ],
+                  "warning":  [
+                                  "music/warning/Rise of the Evil - Ally Calvine.mp3",
+                                  "music/warning/The Gates of Mazrogyl - Ally Calvine.mp3"
+                              ],
+                  "welcome":  [
+                                  "music/welcome/Bluesy Vibes (Sting) - Doug Maxwell_Media Right Productions.mp3"
+                              ]
+              },
+    "backgrounds":  {
+                        "morning":  {
+                                        "folderPath":  "Backgrounds/1. Clear/1. Morning",
+                                        "direct":  [
+                                                       "Backgrounds/1. Clear/1. Morning/IMG_1337.JPEG"
+                                                   ],
+                                        "byCondition":  {
+
+                                                        }
+                                    },
+                        "day":  {
+                                    "folderPath":  "Backgrounds/1. Clear/2. Day",
+                                    "direct":  [
+                                                   "Backgrounds/1. Clear/2. Day/IMG_6489 - Copy (3).jpeg",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_6489.jpeg",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_7752.JPEG",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_7816.JPEG"
+                                               ],
+                                    "byCondition":  {
+
+                                                    }
+                                },
+                        "sunset":  {
+                                       "folderPath":  "Backgrounds/1. Clear/3. Evening",
+                                       "direct":  [
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_5662 - Copy (2).JPEG",
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_5662.JPEG",
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_6963.JPEG"
+                                                  ],
+                                       "byCondition":  {
+
+                                                       }
+                                   },
+                        "night":  {
+                                      "folderPath":  "Backgrounds/1. Clear/4. Night",
+                                      "direct":  [
+                                                     "Backgrounds/1. Clear/4. Night/IMG_8250.jpg"
+                                                 ],
+                                      "byCondition":  {
+
+                                                      }
+                                  }
+                    },
+    "backgroundThemes":  {
+                             "sunrise":  [
+                                             "Backgrounds/1. Clear/1. Morning/IMG_1337.JPEG"
+                                         ],
+                             "day":  [
+                                         "Backgrounds/1. Clear/2. Day/IMG_6489 - Copy (3).jpeg",
+                                         "Backgrounds/1. Clear/2. Day/IMG_6489.jpeg",
+                                         "Backgrounds/1. Clear/2. Day/IMG_7752.JPEG",
+                                         "Backgrounds/1. Clear/2. Day/IMG_7816.JPEG"
+                                     ],
+                             "sunset":  [
+                                            "Backgrounds/1. Clear/3. Evening/IMG_5662 - Copy (2).JPEG",
+                                            "Backgrounds/1. Clear/3. Evening/IMG_5662.JPEG",
+                                            "Backgrounds/1. Clear/3. Evening/IMG_6963.JPEG"
+                                        ],
+                             "rain":  [
+                                          "Backgrounds/2. Rain/IMG_8556.JPEG"
+                                      ],
+                             "cloudy":  [
+                                            "Backgrounds/6. Cloudy/IMG_7835.JPEG",
+                                            "Backgrounds/6. Cloudy/IMG_8091.JPEG",
+                                            "Backgrounds/6. Cloudy/IMG_8101.JPEG"
+                                        ],
+                             "storm":  [
+                                           "Backgrounds/3. Storm/IMG_5143 - Copy.JPEG"
+                                       ],
+                             "fog":  [
+                                         "Backgrounds/4. Fog/IMG_8284.JPEG"
+                                     ],
+                             "snow":  [
+                                          "Backgrounds/5. Snow/IMG_7835.JPEG"
+                                      ],
+                             "night":  [
+                                           "Backgrounds/1. Clear/4. Night/IMG_8250.jpg"
+                                       ],
+                             "severe":  {
+                                            "general":  [
+
+                                                        ],
+                                            "snow":  [
+                                                         "Backgrounds/7. Severe/Snow/IMG_7835.JPEG"
+                                                     ],
+                                            "fire":  [
+                                                         "Backgrounds/7. Severe/Fire/IMG_8091.JPEG"
+                                                     ],
+                                            "wind":  [
+                                                         "Backgrounds/7. Severe/Wind/IMG_7835.JPEG"
+                                                     ],
+                                            "storm":  [
+
+                                                      ],
+                                            "heat":  [
+
+                                                     ],
+                                            "tornado":  [
+                                                            "Backgrounds/7. Severe/Tornado/IMG_5143 - Copy.JPEG"
+                                                        ],
+                                            "hurricane":  [
+                                                              "Backgrounds/7. Severe/Hurricane/IMG_8556.JPEG"
+                                                          ],
+                                            "flood":  [
+                                                          "Backgrounds/7. Severe/Flood/IMG_8556.JPEG"
+                                                      ]
+                                        }
+                         },
+    "welcome":  {
+                    "morning":  {
+                                    "folderPath":  "Welcome/1. Morning",
+                                    "direct":  [
+                                                   "Welcome/1. Morning/IMG_4757.JPEG"
+                                               ],
+                                    "bySeason":  {
+                                                     "fall":  [
+                                                                  "Welcome/1. Morning/Fall/IMG_2709.JPEG",
+                                                                  "Welcome/1. Morning/Fall/IMG_9252.JPEG"
+                                                              ],
+                                                     "spring":  [
+                                                                    "Welcome/1. Morning/Spring/IMG_4757.JPEG"
+                                                                ],
+                                                     "summer":  [
+                                                                    "Welcome/1. Morning/Summer/IMG_0014.JPEG",
+                                                                    "Welcome/1. Morning/Summer/IMG_4757.JPEG",
+                                                                    "Welcome/1. Morning/Summer/IMG_8993.JPEG"
+                                                                ],
+                                                     "winter":  [
+                                                                    "Welcome/1. Morning/Winter/IMG_4757.JPEG"
+                                                                ]
+                                                 }
+                                },
+                    "day":  {
+                                "folderPath":  "Welcome/2. Day",
+                                "direct":  [
+                                               "Welcome/2. Day/IMG_8594.JPEG"
+                                           ],
+                                "bySeason":  {
+                                                 "fall":  [
+                                                              "Welcome/2. Day/Fall/IMG_2846.JPEG",
+                                                              "Welcome/2. Day/Fall/IMG_5589.JPEG",
+                                                              "Welcome/2. Day/Fall/IMG_5667.JPEG",
+                                                              "Welcome/2. Day/Fall/IMG_5670.JPEG"
+                                                          ],
+                                                 "spring":  [
+                                                                "Welcome/2. Day/Spring/IMG_8537.JPEG"
+                                                            ],
+                                                 "summer":  [
+                                                                "Welcome/2. Day/Summer/IMG_8373.JPEG",
+                                                                "Welcome/2. Day/Summer/IMG_8390.JPEG",
+                                                                "Welcome/2. Day/Summer/IMG_8594.JPEG"
+                                                            ],
+                                                 "winter":  [
+                                                                "Welcome/2. Day/Winter/IMG_4142.JPEG",
+                                                                "Welcome/2. Day/Winter/IMG_7373.JPEG",
+                                                                "Welcome/2. Day/Winter/IMG_9301.JPEG"
+                                                            ]
+                                             }
+                            },
+                    "sunset":  {
+                                   "folderPath":  "Welcome/3. Sunset",
+                                   "direct":  [
+                                                  "Welcome/3. Sunset/IMG_0014.JPEG"
+                                              ],
+                                   "bySeason":  {
+                                                    "fall":  [
+                                                                 "Welcome/3. Sunset/Fall/IMG_2709.JPEG",
+                                                                 "Welcome/3. Sunset/Fall/IMG_9252.JPEG"
+                                                             ],
+                                                    "spring":  [
+
+                                                               ],
+                                                    "summer":  [
+                                                                   "Welcome/3. Sunset/Summer/IMG_0014.JPEG",
+                                                                   "Welcome/3. Sunset/Summer/IMG_4757.JPEG",
+                                                                   "Welcome/3. Sunset/Summer/IMG_8993.JPEG"
+                                                               ],
+                                                    "winter":  [
+                                                                   "Welcome/3. Sunset/Winter/IMG_9318.JPEG"
+                                                               ]
+                                                }
+                               },
+                    "night":  {
+                                  "folderPath":  "Welcome/4. Night",
+                                  "direct":  [
+                                                 "Welcome/4. Night/IMG_5143 - Copy (4) - Copy.JPEG"
+                                             ],
+                                  "bySeason":  {
+                                                   "fall":  [
+                                                                "Welcome/4. Night/Fall/IMG_5143 - Copy (2) - Copy.JPEG"
+                                                            ],
+                                                   "spring":  [
+                                                                  "Welcome/4. Night/Spring/IMG_5143 - Copy (2).JPEG"
+                                                              ],
+                                                   "summer":  [
+                                                                  "Welcome/4. Night/Summer/IMG_5143 - Copy (3) - Copy.JPEG"
+                                                              ],
+                                                   "winter":  [
+                                                                  "Welcome/4. Night/Winter/IMG_5143 - Copy (4) - Copy - Copy.JPEG"
+                                                              ]
+                                               }
+                              }
+                }
+}

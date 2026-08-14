@@ -284,6 +284,45 @@
     border-color: rgba(198, 231, 255, 0.8);
 }
 
+.settings-debug-open {
+    margin-top: 16px;
+    min-height: 42px;
+    border: 1px solid rgba(142, 181, 234, 0.55);
+    background: rgba(68, 116, 186, 0.22);
+    color: #d6eeff;
+    font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.settings-debug-open:hover {
+    background: rgba(68, 116, 186, 0.4);
+    border-color: rgba(198, 231, 255, 0.8);
+}
+
+.debug-modal-panel {
+    width: min(560px, calc(100vw - 32px));
+}
+
+.debug-control-group {
+    margin-top: 14px;
+    display: grid;
+    gap: 8px;
+}
+
+.debug-select {
+    min-height: 44px;
+    border: 1px solid rgba(142, 181, 234, 0.55);
+    padding: 0 12px;
+    background: rgba(214, 238, 255, 0.96);
+    color: #04112f;
+    font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
+    font-size: 0.92rem;
+}
+
 @media (max-width: 768px) {
     .settings-modal-panel {
         padding: 24px 20px 20px;
@@ -699,6 +738,128 @@
     }
 }
 
+:root {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, #b3dbff9e 0%, #789db900 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, #b3dbff9e 0%, #c6e1f4ab 100%);
+    --scene-theme-text-color: #000000;
+    --scene-theme-heading-color: #ffffff;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.92) 35%, rgba(255, 255, 255, 0.62) 72%, rgba(255, 255, 255, 0.18) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), #ffffff 0%, #ffffff4a 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, #ffffff 0%, #0984e300 100%);
+    --scene-theme-glare-color: rgba(255, 255, 255, 0.95);
+    --scene-theme-glare-before-shadow: 0 0px 20px var(--scene-theme-glare-color), 0 0px 30px var(--scene-theme-glare-color);
+}
+
+body[data-scene-theme="sunrise"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, #b3dbff9e 5%, rgba(255, 214, 171, 0.88) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, #b3dbff9e 0%, #c6e1f4ab 100%);
+    --scene-theme-text-color: #000000;
+    --scene-theme-heading-color: #000000;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(255, 245, 229, 1) 0%, rgba(255, 225, 187, 0.88) 36%, rgba(255, 188, 134, 0.52) 72%, rgba(255, 188, 134, 0.16) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), #ffffff 0%, #ffffff4a 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, #ffffff 0%, #0984e300 100%);
+    --scene-theme-glare-color: rgba(255, 255, 255, 0.95);
+}
+
+body[data-scene-theme="day"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, #b3dbff9e 0%, #789db900 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, #b3dbff9e 0%, #c6e1f4ab 100%);
+    --scene-theme-text-color: #000000;
+    --scene-theme-heading-color: #ffffff;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.92) 35%, rgba(255, 255, 255, 0.62) 72%, rgba(255, 255, 255, 0.18) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), #ffffff 0%, #ffffff4a 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, #ffffff 0%, #0984e300 100%);
+    --scene-theme-glare-color: rgb(255, 255, 255);
+}
+
+body[data-scene-theme="sunset"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(135, 87, 161, 0.86) 0%, rgba(255, 190, 156, 0.86) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(135, 87, 161, 0.86) 0%, rgba(79, 43, 99, 0.86) 100%);
+    --scene-theme-text-color: #000000;
+    --scene-theme-heading-color: #ffffff;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgb(216, 174, 221) 0%, rgba(216, 174, 221, 0.36) 36%, rgba(171, 126, 212, 0.48) 72%, rgba(171, 126, 212, 0.14) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgb(216, 174, 221) 0%, rgba(167, 90, 181, 0.788) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgb(216, 174, 221) 0%, rgba(181, 92, 90, 0) 100%);
+    --scene-theme-glare-color: rgba(67, 13, 128, 0.9);
+}
+
+body[data-scene-theme="rain"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(142, 168, 191, 0.78) 0%, rgba(88, 114, 149, 0.24) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(142, 168, 191, 0.78) 0%, rgba(88, 114, 149, 0.24) 100%);
+    --scene-theme-text-color: #000000;
+    --scene-theme-heading-color: #ffffff;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(230, 243, 255, 0.94) 0%, rgba(193, 221, 248, 0.8) 35%, rgba(125, 171, 220, 0.42) 72%, rgba(125, 171, 220, 0.12) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgba(198, 225, 255, 0.8) 0%, rgba(85, 132, 190, 0.2) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgba(207, 233, 255, 0.7) 0%, rgba(65, 99, 149, 0) 100%);
+    --scene-theme-glare-color: rgba(183, 215, 246, 0.72);
+}
+
+body[data-scene-theme="cloudy"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(201, 210, 221, 0.78) 0%, rgba(125, 139, 160, 0.24) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(201, 210, 221, 0.78) 0%, rgba(125, 139, 160, 0.24) 100%);
+    --scene-theme-text-color: #1f2d3f;
+    --scene-theme-heading-color: #eef4fb;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(245, 249, 255, 0.95) 0%, rgba(219, 231, 245, 0.82) 35%, rgba(164, 183, 207, 0.42) 72%, rgba(164, 183, 207, 0.12) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgba(235, 243, 255, 0.85) 0%, rgba(144, 162, 190, 0.2) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgba(229, 237, 252, 0.82) 0%, rgba(130, 152, 183, 0) 100%);
+    --scene-theme-glare-color: rgba(221, 229, 241, 0.76);
+}
+
+body[data-scene-theme="storm"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(89, 101, 124, 0.82) 0%, rgba(41, 46, 74, 0.3) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(89, 101, 124, 0.82) 0%, rgba(41, 46, 74, 0.3) 100%);
+    --scene-theme-text-color: #fdfff0;
+    --scene-theme-heading-color: #ffffff;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(225, 236, 255, 0.88) 0%, rgba(166, 189, 231, 0.7) 35%, rgba(103, 126, 177, 0.36) 72%, rgba(103, 126, 177, 0.1) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgba(217, 231, 255, 0.72) 0%, rgba(120, 126, 188, 0.16) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgba(204, 222, 255, 0.65) 0%, rgba(72, 84, 140, 0) 100%);
+    --scene-theme-glare-color: rgba(249, 255, 191, 0.65);
+}
+
+body[data-scene-theme="fog"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(185, 205, 215, 0.74) 0%, rgba(138, 149, 159, 0.26) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(185, 205, 215, 0.74) 0%, rgba(138, 149, 159, 0.26) 100%);
+    --scene-theme-text-color: #000000;
+    --scene-theme-heading-color: #ffffff;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(246, 249, 253, 0.88) 0%, rgba(211, 221, 232, 0.72) 35%, rgba(168, 184, 199, 0.35) 72%, rgba(168, 184, 199, 0.1) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgba(245, 249, 255, 0.72) 0%, rgba(184, 195, 210, 0.2) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgba(239, 245, 252, 0.64) 0%, rgba(160, 174, 191, 0) 100%);
+    --scene-theme-glare-color: rgba(230, 238, 248, 0.68);
+}
+
+body[data-scene-theme="snow"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(247, 251, 255, 0.82) 0%, rgba(182, 213, 242, 0.28) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(247, 251, 255, 0.82) 0%, rgba(182, 213, 242, 0.28) 150%);
+    --scene-theme-text-color: #000000;
+    --scene-theme-heading-color: #000000;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 0.98) 0%, rgba(237, 247, 255, 0.9) 35%, rgba(193, 220, 246, 0.45) 72%, rgba(193, 220, 246, 0.12) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgba(255, 255, 255, 0.96) 0%, rgba(196, 220, 248, 0.28) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(160, 201, 240, 0) 100%);
+    --scene-theme-glare-color: rgba(247, 252, 255, 0.92);
+}
+
+body[data-scene-theme="night"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(35, 26, 39, 0.76) 0%, rgba(16, 25, 46, 0.34) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(35, 26, 39, 0.76) 0%, rgba(16, 25, 46, 0.34) 100%);
+    --scene-theme-text-color: #b8c4b8;
+    --scene-theme-heading-color: #b8c4b8;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(225, 238, 255, 0.86) 0%, rgba(151, 182, 227, 0.66) 35%, rgba(88, 118, 179, 0.34) 72%, rgba(88, 118, 179, 0.1) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgba(195, 221, 255, 0.72) 0%, rgba(88, 116, 183, 0.18) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgba(196, 220, 255, 0.7) 0%, rgba(52, 76, 140, 0) 100%);
+    --scene-theme-glare-color: rgba(196, 221, 199, 0.7);
+}
+
+body[data-scene-theme="severe"] {
+    --scene-theme-main-body-gradient: linear-gradient(180deg, rgba(157, 15, 15, 0.86) 0%, rgba(27, 14, 14, 0.5) 100%);
+    --scene-theme-city-header-gradient: linear-gradient(135deg, rgba(138, 22, 22, 0.92) 0%, rgba(66, 6, 6, 0.82) 100%);
+    --scene-theme-text-color: #ffffff;
+    --scene-theme-heading-color: #ffffff;
+    --scene-theme-horizontal-glare: radial-gradient(ellipse at 50% 50%, rgba(255, 233, 209, 0.96) 0%, rgba(255, 162, 116, 0.76) 35%, rgba(255, 84, 84, 0.36) 72%, rgba(255, 84, 84, 0.12) 100%);
+    --scene-theme-glare-top-gradient: radial-gradient(circle at calc(var(--scene-main-divider-x, 50%) - 3px), rgba(14, 6, 1, 0.78) 0%, rgba(255, 126, 98, 0.22) 100%);
+    --scene-theme-glare-divider-gradient: linear-gradient(180deg, rgba(14, 6, 1, 0.78) 0%, rgba(188, 40, 24, 0) 100%);
+    --scene-theme-glare-color: rgba(223, 33, 8, 0.72);
+}
+
 /* ===========================================
    SCENE 1: ORIGINAL WEATHER VIEW (HIDDEN)
    =========================================== */
@@ -833,17 +994,49 @@
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     font-weight: bold;
     letter-spacing: 0.1vw;
-    color: #ffffff;
+    color: var(--scene-theme-heading-color);
     margin-bottom: 1%;
 }
 /*City name*/
 .scene-header p {
-    color: #000000;
+    color: var(--scene-theme-text-color);
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     font-size: clamp(0.1rem, 2vw, 2.5rem);
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 0.2vw;
+}
+
+#scene-now :is(h1, h2, h3, h4),
+#scene-hourly :is(h1, h2, h3, h4),
+#scene-7-day :is(h1, h2, h3, h4),
+#scene-almanac :is(h1, h2, h3, h4),
+#scene-36-hour :is(h1, h2, h3, h4),
+#scene-air :is(h1, h2, h3, h4),
+#scene-sun :is(h1, h2, h3, h4),
+#scene-moon :is(h1, h2, h3, h4),
+#scene-allergy :is(h1, h2, h3, h4),
+#scene-marine :is(h1, h2, h3, h4),
+#scene-hydrological :is(h1, h2, h3, h4),
+#scene-ground :is(h1, h2, h3, h4),
+#scene-winter :is(h1, h2, h3, h4) {
+    color: var(--scene-theme-heading-color);
+}
+
+#scene-now :is(p, span, li, dt, dd, label),
+#scene-hourly :is(p, span, li, dt, dd, label),
+#scene-7-day :is(p, span, li, dt, dd, label),
+#scene-almanac :is(p, span, li, dt, dd, label),
+#scene-36-hour :is(p, span, li, dt, dd, label),
+#scene-air :is(p, span, li, dt, dd, label),
+#scene-sun :is(p, span, li, dt, dd, label),
+#scene-moon :is(p, span, li, dt, dd, label),
+#scene-allergy :is(p, span, li, dt, dd, label),
+#scene-marine :is(p, span, li, dt, dd, label),
+#scene-hydrological :is(p, span, li, dt, dd, label),
+#scene-ground :is(p, span, li, dt, dd, label),
+#scene-winter :is(p, span, li, dt, dd, label) {
+    color: var(--scene-theme-text-color);
 }
 
 .bulletin-badge {
@@ -930,13 +1123,13 @@
     display: flex;
     flex-direction: column;
     padding: clamp(16px, 2.2vmin, 28px);
-    background: linear-gradient(180deg, #b3dbff9e 0, #789db900 100%);
+    background: var(--scene-theme-main-body-gradient);
     box-shadow: inset 0 18px 36px rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.14);
 }
 
 .air-day {
     margin: 0;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     font-size: clamp(1.2rem, 3vw, 3rem);
     letter-spacing: 0.12em;
@@ -961,7 +1154,7 @@
 
 .air-primary-value {
     margin: clamp(8px, 1vmin, 14px) 0 0;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     font-size: clamp(1.4rem, 3.2vw, 3rem);
     letter-spacing: 0.08em;
@@ -980,7 +1173,7 @@
 }
 
 .marine-block {
-    --marine-body-image: url("marine/fa8c4f05c9171dffb37e41c9a0187b5e.jpg");
+    --marine-body-image: url("marine/IMG_6823.JPEG");
     position: relative;
     min-height: 0;
     overflow: hidden;
@@ -1296,7 +1489,7 @@
 .sun-right-pane {
     min-height: 0;
     overflow: hidden;
-    background: linear-gradient(180deg, #b3dbff9e 0, #789db900 100%);
+    background: var(--scene-theme-main-body-gradient);
 }
 
 .sun-left-pane {
@@ -1448,7 +1641,7 @@
     --scene-main-gap: 0;
     --scene-main-divider-x: 50%;
     grid-template-columns: 1fr 1fr;
-    background: linear-gradient(180deg, #b3dbff9e 0, #789db900 100%);
+    background: var(--scene-theme-main-body-gradient);
 }
 
 .moon-left-pane {
@@ -1570,7 +1763,6 @@
     --scene-main-gap: 0;
     --scene-main-divider-x: 50%;
     grid-template-columns: 1fr;
-    background: linear-gradient(180deg, #b3dbff9e 0%, #789db900 1%);
 }
 
 .radar-main::before,
@@ -1806,7 +1998,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    background-image: var(--hydro-card-image, url("hydrological/none.png"));
+    background-image: var(--hydro-card-image, url("hydrological/none.JPEG"));
     background-size: cover;
     background-position: center;
     /* opacity: 0.36; */
@@ -1948,7 +2140,7 @@
 .scene-36-story {
     min-height: 0;
     overflow: hidden;
-    background: linear-gradient(180deg, #b3dbff9e 0, #789db900 100%);
+    background: var(--scene-theme-main-body-gradient);
     padding: clamp(16px, 2.2vmin, 28px);
     display: flex;
     align-items: stretch;
@@ -1957,7 +2149,7 @@
 .scene-36-text {
     margin: 0;
     width: 100%;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     font-size: clamp(0.95rem, 1.8vw, 2.1rem);
     line-height: 1.35;
@@ -1970,7 +2162,7 @@
 .scene-36-image-pane {
     min-height: 0;
     align-self: stretch;
-    background-image: url("weather pane/sunny_pane.png");
+    background-image: url("weather pane/day_clear_pane.png");
     background-size: 100% 100%;
     background-position: center;
     background-repeat: no-repeat;
@@ -1996,8 +2188,13 @@
     opacity: 0.85;
     filter: blur(1px) saturate(1.2);
     mix-blend-mode: screen;
-    box-shadow: 0 0px 20px rgb(255 255 255), 0 0px 30px rgb(255 255 255);
-    background: radial-gradient(circle at calc(var(--scene-main-divider-x) - 3px), #ffffff 0%, #ffffff4a 100%);
+    box-shadow: var(--scene-theme-glare-before-shadow);
+    background: var(--scene-theme-glare-top-gradient);
+}
+
+#scene-bulletin .scene-main::before,
+#scene-radar .scene-main::before {
+    display: none;
 }
 
 /*gradient between scene left and scene stats*/
@@ -2011,15 +2208,15 @@
     pointer-events: none;
     z-index: 1;
     mix-blend-mode: screen;
-    box-shadow: 0 -40vh 25px rgb(255 255 255), 0 -30vh 40px rgb(255 255 255);
-    background: linear-gradient(180deg, #ffffff 0%, #0984e300 100%);
+    box-shadow: 0 -40vh 25px var(--scene-theme-glare-color), 0 -30vh 40px var(--scene-theme-glare-color);
+    background: var(--scene-theme-glare-divider-gradient);
     filter: blur(2px) saturate(1.2);
 }
 
 .scene-city-header {
     text-align: left;
     box-shadow: 0 25px 80px rgba(0, 0, 0, 0.15);
-    background: linear-gradient(135deg, #b3dbff9e 0%, #c6e1f4ab 100%);
+    background: var(--scene-theme-city-header-gradient);
 }
 
 .scene-city-header.bulletin-badge {
@@ -2034,7 +2231,7 @@
     height: 100%;
     padding-top: clamp(10px, 1.8vmin, 28px);
     padding-bottom: clamp(10px, 1.8vmin, 28px);
-    background: linear-gradient(180deg, #b3dbff9e 0, #789db900 100%);
+    background: var(--scene-theme-main-body-gradient);
     align-self: stretch;
     min-height: 0;
     overflow: hidden;
@@ -2051,7 +2248,7 @@
 .scene-condition{
     font-size: clamp(0.1rem, 2.5vw, 4rem);
     font-weight: 700;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     margin-top: auto;
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     letter-spacing: 0.1vw;
@@ -2060,7 +2257,7 @@
 .scene-temp {
     font-size: clamp(0.1rem, 8vw, 10rem);
     font-weight: 700;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     margin-top: auto;
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
 }
@@ -2073,7 +2270,7 @@
     min-height: 0;
     align-self: stretch;
     overflow: hidden;
-    background: linear-gradient(180deg, #b3dbff9e 0, #789db900 100%);
+    background: var(--scene-theme-main-body-gradient);
 }
 
 .current-conditions-text,
@@ -2098,7 +2295,7 @@
     line-height: 1;
     font-size: clamp(0.1rem, 3.5cqi, 2.8rem);
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     font-weight: 1000;
 }
 
@@ -2164,7 +2361,8 @@
 .week-horizontal-flare {
     height: 3px;
     width: 100%;
-    background: radial-gradient(ellipse at 50% 50%, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.92) 35%, rgba(255, 255, 255, 0.62) 72%, rgba(255, 255, 255, 0.18) 100%);
+    background: var(--scene-theme-horizontal-glare);
+    box-shadow: 0 0 18px var(--scene-theme-glare-color);
     filter: blur(1px) saturate(1.2);
     mix-blend-mode: screen;
 }
@@ -2174,7 +2372,7 @@
     flex: 1 1 0;
     min-width: 0;
     height: 100%;
-    background: linear-gradient(180deg, #b3dbff9e 0, #789db900 100%);
+    background: var(--scene-theme-main-body-gradient);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -2198,7 +2396,7 @@
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     font-size: clamp(1.5rem, 2vw, 3rem);
     letter-spacing: 0.05em;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     text-transform: uppercase;
 }
 
@@ -2215,7 +2413,7 @@
     min-height: 2.4em;
     font-size: clamp(1rem, 1.5vw, 4rem);
     line-height: 1.2;
-    color: #000000;
+    color: var(--scene-theme-text-color);
     font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     letter-spacing: 0.1em;
     text-transform: uppercase;
