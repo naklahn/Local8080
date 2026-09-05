@@ -6,6 +6,7 @@ const settingsButton = document.querySelector('.active-tab-cap');
 const settingsModal = document.getElementById('settings-modal');
 const settingsCityInput = document.getElementById('settings-city-input');
 const settingsSearchButton = document.getElementById('settings-search-button');
+const settingsCurrentLocationButton = document.getElementById('settings-current-location-button');
 const settingsAutoAdvanceToggle = document.getElementById('settings-auto-advance-toggle');
 const settingsRandomCityToggle = document.getElementById('settings-random-city-toggle');
 const settingsMuteToggle = document.getElementById('settings-mute-toggle');
@@ -18,6 +19,7 @@ const debugBackgroundSelect = document.getElementById('debug-background-select')
 const settingsCloseButtons = document.querySelectorAll('[data-settings-close]');
 const debugCloseButtons = document.querySelectorAll('[data-debug-close]');
 let lastSearchedCity = '';
+let lastWeatherRefreshQuery = '';
 let isWeatherRequestInFlight = false;
 let randomCityOnIntroWrapEnabled = false;
 const DEGREE_SYMBOL = String.fromCharCode(176);
@@ -73,11 +75,9 @@ const DYNAMIC_BACKGROUND_SCENES = [
 const NWS_RADAR_STATIONS_URL = 'https://api.weather.gov/radar/stations';
 const RADAR_LOOP_GIF_BASE_URL = 'https://radar.weather.gov/ridge/standard';
 const MUSIC_BACKGROUND_VOLUME_TARGET = 0.42;
-const MUSIC_BACKGROUND_FADE_MS = 3800;
 const MUSIC_BACKGROUND_FADE_STEP_MS = 120;
 const MUSIC_BACKGROUND_START_DELAY_MS = 2600;
 const MUSIC_TRACK_CROSSFADE_MS = 1400;
-let cachedCoopsWaterLevelStations = null;
 const cachedSurfZoneMetadataById = new Map();
 let cachedRadarStations = null;
 let selectedAlertMusicMode = 'normal';
@@ -131,12 +131,12 @@ let debugThemeOverrideKey = '';
 let debugBackgroundOverridePath = '';
 let lastWeatherValuesForTheme = null;
 const INTRO_SENTENCES = [
-    'Weather shifts quickly, so here is the latest local snapshot.',
-    'Your local forecast is ready with conditions that matter right now.',
-    'Staying ahead of the weather starts with a strong local picture.',
-    'From sky to street, your local weather update is about to begin.',
-    'Planning your day starts here with the latest local weather details.',
-    'Here comes your latest local weather story, built for your area.'
+    'Let\'s see where the day... or night... takes us.',
+    'Make the most of the day, starting with your local weather update.',
+    'Looking for the forecast? Or just some background noise...',
+    'To stay safe is to stay informed.',
+    'Find the beauty in every moment.',
+    'Weather is constantly shifting, whether we want it to or not.'
 ];
 let introSequenceTimeoutIds = [];
 
@@ -505,6 +505,10 @@ if (settingsSearchButton) {
     settingsSearchButton.addEventListener('click', () => submitWeatherSearch(settingsCityInput));
 }
 
+if (settingsCurrentLocationButton) {
+    settingsCurrentLocationButton.addEventListener('click', getWeatherForCurrentLocation);
+}
+
 setRandomCityOnIntroWrapEnabled(localStorage.getItem('random-city-on-intro-wrap') === 'true');
 
 if (settingsRandomCityToggle) {
@@ -683,23 +687,6 @@ function pickRandomScenes(sceneIds, maxCount = 2) {
 
 function hasMeaningfulText(value) {
     return Boolean(String(value || '').trim());
-}
-
-function hasAnyDisplayableForecastEntries(entries) {
-    if (!Array.isArray(entries) || entries.length === 0) {
-        return false;
-    }
-
-    return entries.some(entry => {
-        if (!entry || typeof entry !== 'object') {
-            return false;
-        }
-
-        const hasTemp = Number.isFinite(Number(entry.temperature));
-        const hasLabel = hasMeaningfulText(entry.label) && String(entry.label).trim() !== '---';
-        const hasCondition = hasMeaningfulText(entry.condition);
-        return hasTemp || hasLabel || hasCondition;
-    });
 }
 
 function hasAnyNarrativeSegments(segments) {
@@ -2228,6 +2215,48 @@ async function getWeather(city) {
         return;
     }
 
+    return requestWeatherForLocation(() => geocodeCity(city), city);
+}
+
+async function getWeatherForCurrentLocation() {
+    if (!navigator.geolocation) {
+        alert('Current location is not supported by this browser.');
+        return;
+    }
+
+    if (isWeatherRequestInFlight) {
+        console.log('[WEATHER] Request already in progress, skipping duplicate search.');
+        return;
+    }
+
+    const originalButtonText = settingsCurrentLocationButton ? settingsCurrentLocationButton.textContent : '';
+    if (settingsCurrentLocationButton) {
+        settingsCurrentLocationButton.disabled = true;
+        settingsCurrentLocationButton.textContent = 'Finding Current Location...';
+    }
+
+    try {
+        const position = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000
+            });
+        });
+        const { latitude, longitude } = position.coords;
+        await requestWeatherForLocation(() => reverseGeocodeCoordinates(latitude, longitude));
+    } catch (error) {
+        console.error('Current location unavailable:', error);
+        alert('Unable to get your current location. Check browser location permissions and try again.');
+    } finally {
+        if (settingsCurrentLocationButton) {
+            settingsCurrentLocationButton.disabled = false;
+            settingsCurrentLocationButton.textContent = originalButtonText;
+        }
+    }
+}
+
+async function requestWeatherForLocation(resolveLocation, refreshQuery = '') {
     if (isWeatherRequestInFlight) {
         console.log('[WEATHER] Request already in progress, skipping duplicate search.');
         return;
@@ -2235,19 +2264,20 @@ async function getWeather(city) {
 
     isWeatherRequestInFlight = true;
 
-    lastSearchedCity = city;
-
-    if (cityInput) {
-        cityInput.value = city;
-    }
-
-    if (settingsCityInput) {
-        settingsCityInput.value = city;
-    }
-
     try {
         await ensureRuntimeAssetsLoaded();
-        const { lat, lon, cityName, zipCode } = await geocodeCity(city);
+        const { lat, lon, cityName, zipCode } = await resolveLocation();
+        lastSearchedCity = cityName;
+        lastWeatherRefreshQuery = String(refreshQuery || cityName).trim();
+
+        if (cityInput) {
+            cityInput.value = cityName;
+        }
+
+        if (settingsCityInput) {
+            settingsCityInput.value = cityName;
+        }
+
         const { forecastData, alertsData, hourlyData, metarData, pointsData } = await fetchWeatherGovData(lat, lon);
         const forecastOfficeCode = String(pointsData?.properties?.cwa || '').trim().toUpperCase();
         const [openAqData, sunTimesData, uvData, lunarData, pollenData, pollenExtendedData, hydrologicalData, marineData, radarData] = await Promise.all([
@@ -2352,6 +2382,44 @@ async function geocodeCity(city) {
     const zipCodeMatch = String(zipCodeRaw).match(/\d{5}/);
     const zipCode = zipCodeMatch ? zipCodeMatch[0] : '';
     return { lat, lon, cityName, zipCode };
+}
+
+async function reverseGeocodeCoordinates(latitude, longitude) {
+    const lat = Number(latitude);
+    const lon = Number(longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        throw new Error('Invalid current location coordinates');
+    }
+
+    const reverseUrl = `https://nominatim.openstreetmap.org/reverse?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&format=json&addressdetails=1`;
+    const response = await fetch(reverseUrl);
+    if (!response.ok) {
+        throw new Error(`Unable to identify current location: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const address = data?.address || {};
+    const localityName = String(
+        address.city ||
+        address.town ||
+        address.village ||
+        address.municipality ||
+        address.county ||
+        data?.display_name?.split(',')[0] ||
+        'Current Location'
+    ).trim();
+    const stateName = String(address.state || address.state_district || '').trim();
+    const cityName = stateName && localityName.toLowerCase() !== stateName.toLowerCase()
+        ? `${localityName}, ${stateName}`
+        : localityName;
+    const zipCodeMatch = String(address.postcode || '').match(/\d{5}/);
+
+    return {
+        lat,
+        lon,
+        cityName,
+        zipCode: zipCodeMatch ? zipCodeMatch[0] : ''
+    };
 }
 
 // Backward-compatible alias while the app transitions from OpenAQ naming to AirNow.
@@ -2667,51 +2735,6 @@ function findMostRecentCoopsDatum(data) {
     return latest || data[data.length - 1] || null;
 }
 
-async function fetchCoopsWaterLevelStations() {
-    if (Array.isArray(cachedCoopsWaterLevelStations) && cachedCoopsWaterLevelStations.length > 0) {
-        return cachedCoopsWaterLevelStations;
-    }
-
-    const fetchStationsByType = async stationType => {
-        const params = new URLSearchParams();
-        params.set('type', stationType);
-        params.set('units', 'english');
-
-        const url = `${COOPS_MDAPI_BASE_URL}/stations.json?${params.toString()}`;
-        const response = await fetch(url, {
-            headers: { 'Accept': 'application/json' }
-        });
-
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`CO-OPS ${stationType} station list request failed: ${response.status} ${text}`);
-        }
-
-        const payload = await response.json();
-        console.log(`[API] coops${stationType}StationListData:`, payload);
-        return Array.isArray(payload?.stations) ? payload.stations : [];
-    };
-
-    const [waterLevelStations, meteorologicalStations] = await Promise.all([
-        fetchStationsByType('waterlevels'),
-        fetchStationsByType('met')
-    ]);
-
-    const stationsById = new Map();
-    [...waterLevelStations, ...meteorologicalStations].forEach(station => {
-        const stationId = String(station?.id || '').trim();
-        if (!stationId || stationsById.has(stationId)) {
-            return;
-        }
-
-        stationsById.set(stationId, station);
-    });
-
-    const stations = Array.from(stationsById.values());
-    cachedCoopsWaterLevelStations = stations;
-    return stations;
-}
-
 async function fetchCoopsDatagetterProduct(stationId, product, additionalParams = {}) {
     const safeStationId = String(stationId || '').trim();
     const safeProduct = String(product || '').trim();
@@ -2756,37 +2779,6 @@ async function fetchCoopsDatagetterProduct(stationId, product, additionalParams 
 
     console.log(`[API] coops${safeProduct}Data:${safeStationId}:`, payload);
     return payload;
-}
-
-function getNextTideExtrema(predictions) {
-    const rows = Array.isArray(predictions) ? predictions : [];
-    const nowMs = Date.now();
-
-    const parsed = rows
-        .map(row => {
-            const timestampText = String(row?.t || '').trim();
-            const parsedMs = Date.parse(`${timestampText.replace(' ', 'T')}Z`);
-
-            return {
-                raw: row,
-                timeText: timestampText,
-                timeMs: Number.isFinite(parsedMs) ? parsedMs : Number.POSITIVE_INFINITY,
-                type: String(row?.type || '').trim().toUpperCase(),
-                height: toFiniteNumber(row?.v)
-            };
-        })
-        .filter(row => row.timeText && Number.isFinite(row.timeMs) && (row.type === 'H' || row.type === 'L'))
-        .sort((a, b) => a.timeMs - b.timeMs);
-
-    const upcoming = parsed.filter(row => row.timeMs >= nowMs);
-    const candidateRows = upcoming.length > 0 ? upcoming : parsed;
-    const nextHigh = candidateRows.find(row => row.type === 'H') || null;
-    const nextLow = candidateRows.find(row => row.type === 'L') || null;
-
-    return {
-        nextHigh,
-        nextLow
-    };
 }
 
 async function fetchCoopsTidePredictions(stationId, daysAhead = MARINE_PREDICTION_DAYS_AHEAD) {
@@ -3126,25 +3118,6 @@ function getGeometryCoordinatePairs(geometry) {
 
     visitGeometry(geometry);
     return pairs;
-}
-
-function getGeometryCenterPoint(geometry) {
-    const pairs = getGeometryCoordinatePairs(geometry);
-    if (pairs.length === 0) {
-        return { latitude: null, longitude: null };
-    }
-
-    let lonSum = 0;
-    let latSum = 0;
-    pairs.forEach(pair => {
-        lonSum += pair[0];
-        latSum += pair[1];
-    });
-
-    return {
-        latitude: latSum / pairs.length,
-        longitude: lonSum / pairs.length
-    };
 }
 
 function getGeometryDistanceMiles(baseLat, baseLon, geometry) {
@@ -3663,17 +3636,6 @@ async function fetchCurrentUv(zipCode) {
     }
 }
 
-function pickNumericValue(source, keys) {
-    for (const key of keys) {
-        const numericValue = Number(source && source[key]);
-        if (Number.isFinite(numericValue)) {
-            return numericValue;
-        }
-    }
-
-    return null;
-}
-
 function parseUsnoPhaseDateTime(dateValue, timeValue) {
     const dateText = String(dateValue || '').trim();
     if (!dateText) {
@@ -4042,105 +4004,31 @@ function markPollenProxyUnavailable() {
     hasLoggedPollenProxyCooldown = false;
 }
 
-async function fetchLunarData(lat, lon) {
-    const now = new Date();
-    const nowDateIso = now.toISOString().slice(0, 10);
-    const horizonsStartDate = formatIsoDateOnly(new Date(now.getTime() - (24 * 60 * 60 * 1000)));
-    const horizonsStopDate = formatIsoDateOnly(new Date(now.getTime() + (400 * 24 * 60 * 60 * 1000)));
-    const nasaHorizonsUrl = buildHorizonsMoonApiUrl(lat, lon, horizonsStartDate, horizonsStopDate, '12h');
-    const usnoUrl = `https://aa.usno.navy.mil/api/moon/phases/date?date=${encodeURIComponent(nowDateIso)}&nump=60`;
-
+async function fetchLunarData() {
     try {
-        const [nasaResult, usnoResult] = await Promise.allSettled([
-            fetchJsonWithCorsFallback(nasaHorizonsUrl, 'NASA Horizons', {
-                skipDirect: true,
-                proxyServices: ['corsproxy']
-            }),
-            fetchJsonWithCorsFallback(usnoUrl, 'USNO phases')
-        ]);
-
-        let nasaSnapshots = [];
-        if (nasaResult.status === 'fulfilled') {
-            const nasaPayload = nasaResult.value;
-            console.log('[API] nasaHorizonsMoonData:', nasaPayload);
-            nasaSnapshots = buildHorizonsMoonSnapshots(nasaPayload?.result);
-        } else {
-            console.warn('[API] NASA moon unavailable:', nasaResult.reason);
-        }
-
-        let phaseRows = [];
-        if (usnoResult.status === 'fulfilled') {
-            const usnoPayload = usnoResult.value;
-            console.log('[API] usnoMoonPhases:', usnoPayload);
-            phaseRows = Array.isArray(usnoPayload?.phasedata) ? usnoPayload.phasedata : [];
-        } else {
-            console.warn('[API] USNO moon unavailable:', usnoResult.reason);
-        }
-
-        const nowSnapshot = findClosestNasaSnapshot(nasaSnapshots, now);
-        const currentIlluminationPercent = nowSnapshot && Number.isFinite(nowSnapshot.illuminationPercent)
-            ? nowSnapshot.illuminationPercent
-            : null;
-        const currentDistanceKm = nowSnapshot && Number.isFinite(nowSnapshot.distanceKm)
-            ? nowSnapshot.distanceKm
-            : null;
-        const currentSizePercent = computeMoonSizePercent(currentDistanceKm);
-        const futurePhases = phaseRows
-            .map(row => {
-                const phaseName = String(row?.phase || '').trim();
-                const phaseDate = parseUsnoPhaseDateTimeFromRow(row);
-                return { phaseName, phaseDate };
-            })
-            .filter(entry => entry.phaseDate instanceof Date && !Number.isNaN(entry.phaseDate.getTime()) && entry.phaseDate.getTime() >= now.getTime())
-            .sort((a, b) => a.phaseDate - b.phaseDate);
-
-        const majorPhases = futurePhases.filter(entry => {
-            const name = entry.phaseName.toLowerCase();
-            return name.includes('new') || name.includes('full');
+        const response = await fetch('moon-data.json', {
+            cache: 'no-store',
+            headers: { 'Accept': 'application/json' }
         });
-        const nextMajorPhase = majorPhases.length > 0 ? majorPhases[0] : (futurePhases.length > 0 ? futurePhases[0] : null);
-        const nextMajorPhaseName = nextMajorPhase && nextMajorPhase.phaseName
-            ? String(nextMajorPhase.phaseName).toUpperCase()
-            : '--';
-        const nextMajorPhaseDateText = nextMajorPhase && nextMajorPhase.phaseDate
-            ? formatMonthDay(nextMajorPhase.phaseDate)
-            : '--';
-
-        const nextFullMoon = futurePhases.find(entry => entry.phaseName.toLowerCase().includes('full')) || null;
-
-        const futureFullMoons = futurePhases.filter(entry => entry.phaseName.toLowerCase().includes('full'));
-        let nextSuperMoonText = '--';
-
-        if (futureFullMoons.length > 0 && nasaSnapshots.length > 0) {
-            const rankedByDistance = futureFullMoons
-                .map(fullMoon => {
-                    const snapshot = findClosestNasaSnapshot(nasaSnapshots, fullMoon.phaseDate);
-                    return {
-                        phaseDate: fullMoon.phaseDate,
-                        distanceKm: snapshot && Number.isFinite(snapshot.distanceKm) ? snapshot.distanceKm : null
-                    };
-                })
-                .filter(entry => Number.isFinite(entry.distanceKm))
-                .sort((a, b) => a.distanceKm - b.distanceKm);
-
-            if (rankedByDistance.length > 0) {
-                nextSuperMoonText = formatMonthDay(rankedByDistance[0].phaseDate);
-            } else if (nextFullMoon) {
-                nextSuperMoonText = formatMonthDay(nextFullMoon.phaseDate);
-            }
-        } else if (nextFullMoon) {
-            nextSuperMoonText = formatMonthDay(nextFullMoon.phaseDate);
+        if (!response.ok) {
+            throw new Error(`Static moon data request failed: ${response.status}`);
         }
 
+        const moonData = await response.json();
+        console.log('[API] staticMoonData:', moonData);
         return {
-            currentIlluminationPercent,
-            currentSizePercent,
-            nextMajorPhaseName,
-            nextMajorPhaseDateText,
-            nextSuperMoonText
+            currentIlluminationPercent: Number.isFinite(Number(moonData?.currentIlluminationPercent))
+                ? Number(moonData.currentIlluminationPercent)
+                : null,
+            currentSizePercent: Number.isFinite(Number(moonData?.currentSizePercent))
+                ? Number(moonData.currentSizePercent)
+                : null,
+            nextMajorPhaseName: String(moonData?.nextMajorPhaseName || '--'),
+            nextMajorPhaseDateText: String(moonData?.nextMajorPhaseDateText || '--'),
+            nextSuperMoonText: String(moonData?.nextSuperMoonText || '--')
         };
     } catch (error) {
-        console.warn('[API] Lunar data unavailable:', error);
+        console.warn('[API] Static moon data unavailable:', error);
         return null;
     }
 }
@@ -4256,7 +4144,6 @@ async function fetchWeatherGovData(lat, lon) {
 function processWeatherData(forecastData, alertsData, hourlyData, metarData, airNowData, sunTimesData, uvData, lunarData, pollenData, pollenExtendedData, hydrologicalData, marineData, radarData) {
     const currentHourlyPeriod = hourlyData.properties.periods[0];
     const currentPeriod = forecastData.properties.periods[0];
-    const firstForecastPeriod = forecastData.properties.periods[0] || null;
     const nextPeriod = forecastData.properties.periods[1] || currentPeriod;
     const weeklyForecast = buildSevenDayForecast(forecastData.properties.periods);
     const hourlyForecast = buildHourlyForecast(hourlyData.properties.periods);
@@ -4505,7 +4392,7 @@ function computeHeatIndex(tempF, humidity) {
     const t = tempF;
     const r = humidity;
     const hi = -42.379 + 2.04901523 * t + 10.14333127 * r - 0.22475541 * t * r - 0.00683783 * t * t - 0.05481717 * r * r + 0.00122874 * t * t * r + 0.00085282 * t * r * r - 0.00000199 * t * t * r * r;
-    return Math.round(hi * 100) / 100;
+    return Math.round(hi);
 }
 
 function normalizeWindDirection(directionRaw) {
@@ -4988,32 +4875,6 @@ function registerAudioGestureUnlock() {
     ['pointerdown', 'keydown', 'touchstart'].forEach(eventName => {
         document.addEventListener(eventName, unlock, { once: true, passive: true });
     });
-}
-
-function getWindDirectionCardinal(directionDegrees, fallbackCardinal = null) {
-    const fallback = String(fallbackCardinal || '').trim().toUpperCase();
-    if (fallback) {
-        return fallback;
-    }
-
-    const degrees = toFiniteNumber(directionDegrees);
-    if (degrees === null) {
-        return null;
-    }
-
-    const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-    const normalizedDegrees = ((degrees % 360) + 360) % 360;
-    const directionIndex = Math.round(normalizedDegrees / 22.5) % 16;
-    return directions[directionIndex] || null;
-}
-
-function formatMarineNumber(value, unit, fractionDigits = 1) {
-    const numeric = toFiniteNumber(value);
-    if (numeric === null) {
-        return '--';
-    }
-
-    return `${numeric.toFixed(fractionDigits)} ${unit}`;
 }
 
 function sanitizeMarineDisplayText(value) {
@@ -5952,7 +5813,7 @@ function handleIntroWrapCityRefresh() {
         return;
     }
 
-    if (lastSearchedCity) {
-        getWeather(lastSearchedCity);
+    if (lastWeatherRefreshQuery) {
+        getWeather(lastWeatherRefreshQuery);
     }
 }

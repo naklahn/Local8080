@@ -187,6 +187,27 @@
     cursor: pointer;
 }
 
+.settings-current-location-button {
+    width: 100%;
+    min-height: 42px;
+    margin-top: 10px;
+    border: 1px solid rgba(142, 181, 234, 0.8);
+    background: rgba(11, 61, 118, 0.58);
+    color: #d6eeff;
+    cursor: pointer;
+    font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
+    font-size: 0.9rem;
+}
+
+.settings-current-location-button:hover:not(:disabled) {
+    background: rgba(68, 116, 186, 0.8);
+}
+
+.settings-current-location-button:disabled {
+    cursor: wait;
+    opacity: 0.68;
+}
+
 .settings-api-section {
     margin-top: 14px;
     display: grid;
@@ -1395,6 +1416,21 @@ body[data-scene-theme="severe"] {
 .winter-detail-line {
     margin: 0;
     margin-top: 0;
+}
+
+#scene-marine .marine-gauge-name,
+#scene-marine .marine-value-label,
+#scene-marine .marine-field-value,
+#scene-marine .marine-value-main,
+#scene-marine .marine-tide-line,
+#scene-marine .marine-value-sub,
+#scene-marine .marine-consideration-line,
+#scene-winter .winter-primary-label,
+#scene-winter .winter-primary-value,
+#scene-winter .winter-primary-start,
+#scene-winter .marine-value-label,
+#scene-winter .marine-field-value {
+    color: #b8c4b8 !important;
 }
 
 @media (max-width: 768px) {

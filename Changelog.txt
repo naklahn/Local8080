@@ -1,0 +1,23 @@
+Beta 3.0
+Added current location button
+Modified heat index output
+Made the text on marine and winter tabs more readable
+Added more photos
+Added workaround for NASA API (moon size and illuminance)
+Removed AI placeholder text for the intro screen
+Fixed bug where location search would ignore state on wrap leading to error in fetching data
+
+
+Beta 2.0
+Fixed file discovery for backgrounds and music
+Added conditions based themes
+
+Beta 1.0
+Initial upload
+
+TODO
+Add a tropics center
+Add voiceover/alert sounds
+Stop the settings menu button from disappearing (currently only when picking scenes?)
+Add dynamic text to the bottom ticker
+Add a workaround for pollen data gathering (currently blocked by CORS)

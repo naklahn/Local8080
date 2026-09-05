@@ -43,7 +43,13 @@
                                                    "Backgrounds/1. Clear/2. Day/IMG_6489 - Copy (3).jpeg",
                                                    "Backgrounds/1. Clear/2. Day/IMG_6489.jpeg",
                                                    "Backgrounds/1. Clear/2. Day/IMG_7752.JPEG",
-                                                   "Backgrounds/1. Clear/2. Day/IMG_7816.JPEG"
+                                                   "Backgrounds/1. Clear/2. Day/IMG_7816.JPEG",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_8187.JPEG",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_8206.JPEG",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_8211.JPEG",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_8267.JPEG",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_8345.JPEG",
+                                                   "Backgrounds/1. Clear/2. Day/IMG_8349.JPEG"
                                                ],
                                     "byCondition":  {
 
@@ -54,7 +60,11 @@
                                        "direct":  [
                                                       "Backgrounds/1. Clear/3. Evening/IMG_5662 - Copy (2).JPEG",
                                                       "Backgrounds/1. Clear/3. Evening/IMG_5662.JPEG",
-                                                      "Backgrounds/1. Clear/3. Evening/IMG_6963.JPEG"
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_6963.JPEG",
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_8170.JPEG",
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_8310.JPEG",
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_8312.JPEG",
+                                                      "Backgrounds/1. Clear/3. Evening/IMG_8318.JPEG"
                                                   ],
                                        "byCondition":  {
 
@@ -63,7 +73,11 @@
                         "night":  {
                                       "folderPath":  "Backgrounds/1. Clear/4. Night",
                                       "direct":  [
-                                                     "Backgrounds/1. Clear/4. Night/IMG_8250.jpg"
+                                                     "Backgrounds/1. Clear/4. Night/IMG_8352.JPEG",
+                                                     "Backgrounds/1. Clear/4. Night/IMG_8353.JPEG",
+                                                     "Backgrounds/1. Clear/4. Night/IMG_8361.JPEG",
+                                                     "Backgrounds/1. Clear/4. Night/IMG_8367.JPEG",
+                                                     "Backgrounds/1. Clear/4. Night/IMG_8375.JPEG"
                                                  ],
                                       "byCondition":  {
 
@@ -78,12 +92,22 @@
                                          "Backgrounds/1. Clear/2. Day/IMG_6489 - Copy (3).jpeg",
                                          "Backgrounds/1. Clear/2. Day/IMG_6489.jpeg",
                                          "Backgrounds/1. Clear/2. Day/IMG_7752.JPEG",
-                                         "Backgrounds/1. Clear/2. Day/IMG_7816.JPEG"
+                                         "Backgrounds/1. Clear/2. Day/IMG_7816.JPEG",
+                                         "Backgrounds/1. Clear/2. Day/IMG_8187.JPEG",
+                                         "Backgrounds/1. Clear/2. Day/IMG_8206.JPEG",
+                                         "Backgrounds/1. Clear/2. Day/IMG_8211.JPEG",
+                                         "Backgrounds/1. Clear/2. Day/IMG_8267.JPEG",
+                                         "Backgrounds/1. Clear/2. Day/IMG_8345.JPEG",
+                                         "Backgrounds/1. Clear/2. Day/IMG_8349.JPEG"
                                      ],
                              "sunset":  [
                                             "Backgrounds/1. Clear/3. Evening/IMG_5662 - Copy (2).JPEG",
                                             "Backgrounds/1. Clear/3. Evening/IMG_5662.JPEG",
-                                            "Backgrounds/1. Clear/3. Evening/IMG_6963.JPEG"
+                                            "Backgrounds/1. Clear/3. Evening/IMG_6963.JPEG",
+                                            "Backgrounds/1. Clear/3. Evening/IMG_8170.JPEG",
+                                            "Backgrounds/1. Clear/3. Evening/IMG_8310.JPEG",
+                                            "Backgrounds/1. Clear/3. Evening/IMG_8312.JPEG",
+                                            "Backgrounds/1. Clear/3. Evening/IMG_8318.JPEG"
                                         ],
                              "rain":  [
                                           "Backgrounds/2. Rain/IMG_8556.JPEG"
@@ -91,19 +115,28 @@
                              "cloudy":  [
                                             "Backgrounds/6. Cloudy/IMG_7835.JPEG",
                                             "Backgrounds/6. Cloudy/IMG_8091.JPEG",
-                                            "Backgrounds/6. Cloudy/IMG_8101.JPEG"
+                                            "Backgrounds/6. Cloudy/IMG_8101.JPEG",
+                                            "Backgrounds/6. Cloudy/IMG_8179.JPEG",
+                                            "Backgrounds/6. Cloudy/IMG_8189.JPEG",
+                                            "Backgrounds/6. Cloudy/IMG_8199.JPEG"
                                         ],
                              "storm":  [
-                                           "Backgrounds/3. Storm/IMG_5143 - Copy.JPEG"
+                                           "Backgrounds/3. Storm/IMG_5143 - Copy.JPEG",
+                                           "Backgrounds/3. Storm/IMG_8184.JPEG"
                                        ],
                              "fog":  [
+                                         "Backgrounds/4. Fog/IMG_8159.JPEG",
                                          "Backgrounds/4. Fog/IMG_8284.JPEG"
                                      ],
                              "snow":  [
                                           "Backgrounds/5. Snow/IMG_7835.JPEG"
                                       ],
                              "night":  [
-                                           "Backgrounds/1. Clear/4. Night/IMG_8250.jpg"
+                                           "Backgrounds/1. Clear/4. Night/IMG_8352.JPEG",
+                                           "Backgrounds/1. Clear/4. Night/IMG_8353.JPEG",
+                                           "Backgrounds/1. Clear/4. Night/IMG_8361.JPEG",
+                                           "Backgrounds/1. Clear/4. Night/IMG_8367.JPEG",
+                                           "Backgrounds/1. Clear/4. Night/IMG_8375.JPEG"
                                        ],
                              "severe":  {
                                             "general":  [
@@ -172,6 +205,10 @@
                                                               "Welcome/2. Day/Fall/IMG_5670.JPEG"
                                                           ],
                                                  "spring":  [
+                                                                "Welcome/2. Day/Spring/IMG_8158.JPEG",
+                                                                "Welcome/2. Day/Spring/IMG_8263.JPEG",
+                                                                "Welcome/2. Day/Spring/IMG_8264.JPEG",
+                                                                "Welcome/2. Day/Spring/IMG_8265.JPEG",
                                                                 "Welcome/2. Day/Spring/IMG_8537.JPEG"
                                                             ],
                                                  "summer":  [
@@ -216,16 +253,32 @@
                                              ],
                                   "bySeason":  {
                                                    "fall":  [
-                                                                "Welcome/4. Night/Fall/IMG_5143 - Copy (2) - Copy.JPEG"
+                                                                "Welcome/4. Night/Fall/IMG_8352.JPEG",
+                                                                "Welcome/4. Night/Fall/IMG_8353.JPEG",
+                                                                "Welcome/4. Night/Fall/IMG_8361.JPEG",
+                                                                "Welcome/4. Night/Fall/IMG_8367.JPEG",
+                                                                "Welcome/4. Night/Fall/IMG_8375.JPEG"
                                                             ],
                                                    "spring":  [
-                                                                  "Welcome/4. Night/Spring/IMG_5143 - Copy (2).JPEG"
+                                                                  "Welcome/4. Night/Spring/IMG_8352.JPEG",
+                                                                  "Welcome/4. Night/Spring/IMG_8353.JPEG",
+                                                                  "Welcome/4. Night/Spring/IMG_8361.JPEG",
+                                                                  "Welcome/4. Night/Spring/IMG_8367.JPEG",
+                                                                  "Welcome/4. Night/Spring/IMG_8375.JPEG"
                                                               ],
                                                    "summer":  [
-                                                                  "Welcome/4. Night/Summer/IMG_5143 - Copy (3) - Copy.JPEG"
+                                                                  "Welcome/4. Night/Summer/IMG_8352.JPEG",
+                                                                  "Welcome/4. Night/Summer/IMG_8353.JPEG",
+                                                                  "Welcome/4. Night/Summer/IMG_8361.JPEG",
+                                                                  "Welcome/4. Night/Summer/IMG_8367.JPEG",
+                                                                  "Welcome/4. Night/Summer/IMG_8375.JPEG"
                                                               ],
                                                    "winter":  [
-                                                                  "Welcome/4. Night/Winter/IMG_5143 - Copy (4) - Copy - Copy.JPEG"
+                                                                  "Welcome/4. Night/Winter/IMG_8352.JPEG",
+                                                                  "Welcome/4. Night/Winter/IMG_8353.JPEG",
+                                                                  "Welcome/4. Night/Winter/IMG_8361.JPEG",
+                                                                  "Welcome/4. Night/Winter/IMG_8367.JPEG",
+                                                                  "Welcome/4. Night/Winter/IMG_8375.JPEG"
                                                               ]
                                                }
                               }
