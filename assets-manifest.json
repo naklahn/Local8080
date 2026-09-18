@@ -7,6 +7,23 @@
     "winterImages":  [
                          "winter/IMG_9545.JPEG"
                      ],
+    "hydroImages":  {
+                        "none":  [
+                                     "hydrological/none/none.JPEG"
+                                 ],
+                        "action":  [
+                                       "hydrological/action/action.JPEG"
+                                   ],
+                        "minor":  [
+                                      "hydrological/minor/minor.png"
+                                  ],
+                        "moderate":  [
+                                         "hydrological/moderate/moderate.png"
+                                     ],
+                        "major":  [
+                                      "hydrological/major/major.png"
+                                  ]
+                    },
     "music":  {
                   "normal":  [
                                  "music/normal/Airport Lounge - Disco Ultralounge by Kevin MacLeod.mp3",

@@ -1,3 +1,10 @@
+Beta 3.1
+Fixed bug where random city and changing the city would not actually update the displayed forecast
+Fixed bug where welcome scene would update background while active
+Modified sun calculation for day progression in sun scene
+Fixed image routing for the hydrological tab backgrounds to show images based on flood stage
+Added scroll to the lower thirds displaying current conditions and other important info
+
 Beta 3.0
 Added current location button
 Modified heat index output
@@ -19,5 +26,5 @@ TODO
 Add a tropics center
 Add voiceover/alert sounds
 Stop the settings menu button from disappearing (currently only when picking scenes?)
-Add dynamic text to the bottom ticker
 Add a workaround for pollen data gathering (currently blocked by CORS)
+Need to fix some visibility issues

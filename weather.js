@@ -21,6 +21,7 @@ const debugCloseButtons = document.querySelectorAll('[data-debug-close]');
 let lastSearchedCity = '';
 let lastWeatherRefreshQuery = '';
 let isWeatherRequestInFlight = false;
+let activeWeatherRequestId = 0;
 let randomCityOnIntroWrapEnabled = false;
 const DEGREE_SYMBOL = String.fromCharCode(176);
 let airNowApiKey = localStorage.getItem('airnow-api-key') || '';
@@ -40,6 +41,13 @@ const DEFAULT_SCENE_BACKGROUND_PATH = 'Backgrounds/Default%20background.jpeg';
 const DEFAULT_WELCOME_SCENE_BACKGROUND_PATH = 'Welcome/Default%20background.jpeg';
 const DEFAULT_MARINE_BODY_IMAGE_PATH = 'marine/IMG_6823.JPEG';
 const DEFAULT_WINTER_BODY_IMAGE_PATH = 'winter/IMG_9545.JPEG';
+const DEFAULT_HYDRO_CARD_IMAGE_PATHS = {
+    none: 'hydrological/none/none.JPEG',
+    action: 'hydrological/action/action.JPEG',
+    minor: 'hydrological/minor/minor.png',
+    moderate: 'hydrological/moderate/moderate.png',
+    major: 'hydrological/major/major.png'
+};
 const DEFAULT_MUSIC_TRACKS_BY_ALERT_MODE = {
     normal: [
         'music/normal/Entering Graciously.mp3'
@@ -98,6 +106,13 @@ let pollenProxyUnavailableUntilMs = 0;
 let hasLoggedPollenProxyCooldown = false;
 let discoveredMarineBodyImagePaths = [];
 let discoveredWinterBodyImagePaths = [];
+let discoveredHydroCardImagesByCategory = {
+    none: [],
+    action: [],
+    minor: [],
+    moderate: [],
+    major: []
+};
 let discoveredBackgroundAssetsByTheme = {
     sunrise: [],
     day: [],
@@ -155,7 +170,7 @@ function submitWeatherSearch(sourceInput) {
     }
 
     const city = sourceInput.value.trim();
-    getWeather(city);
+    getWeather(city, true);
 }
 
 function setRandomCityOnIntroWrapEnabled(enabled) {
@@ -259,20 +274,27 @@ async function pickRandomCityFromCatalog() {
 }
 
 async function searchRandomCity() {
-    const cityQuery = await pickRandomCityFromCatalog();
-    if (!cityQuery) {
-        return;
-    }
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        const cityQuery = await pickRandomCityFromCatalog();
+        if (!cityQuery) {
+            return;
+        }
 
-    if (cityInput) {
-        cityInput.value = cityQuery;
-    }
+        if (cityInput) {
+            cityInput.value = cityQuery;
+        }
 
-    if (settingsCityInput) {
-        settingsCityInput.value = cityQuery;
-    }
+        if (settingsCityInput) {
+            settingsCityInput.value = cityQuery;
+        }
 
-    getWeather(cityQuery);
+        try {
+            await getWeather(cityQuery, false);
+            return;
+        } catch (error) {
+            console.warn(`[CITY] Random city search failed (attempt ${attempt + 1}) for "${cityQuery}":`, error);
+        }
+    }
 }
 
 function openSettingsModal() {
@@ -282,7 +304,7 @@ function openSettingsModal() {
 
     settingsModal.hidden = false;
     if (settingsCityInput) {
-        settingsCityInput.value = lastSearchedCity;
+        settingsCityInput.value = lastWeatherRefreshQuery || lastSearchedCity;
         settingsCityInput.focus();
         settingsCityInput.select();
     }
@@ -850,11 +872,17 @@ function setActiveScene(sceneId) {
 
     if (sceneId === 'scene-welcome') {
         clearIntroSceneSequence();
+        applyWelcomeSceneBackground(lastWeatherValuesForTheme, true);
     }
 
     if (sceneId === 'scene-intro') {
+        applyWelcomeSceneBackground(lastWeatherValuesForTheme, true);
         runIntroSceneSequence();
         startWelcomeMusicSequence();
+    }
+
+    if (sceneId === 'scene-sun') {
+        positionSunProgressIcon(latestSunriseIso, latestSunsetIso);
     }
 
     return true;
@@ -1189,7 +1217,7 @@ setAudioMuted(isAudioMuted, { persist: false });
 setWelcomeSceneMode(false);
 applySceneTheme('day');
 ensureRuntimeAssetsLoaded().then(() => {
-    applyWelcomeSceneBackground();
+    applyWelcomeSceneBackground(null, true);
     renderDebugThemeState();
 });
 
@@ -1599,7 +1627,11 @@ function pickWelcomeSceneBackground(sunriseIso = null, sunsetIso = null) {
     return pickRandomArrayItem(fallbackList) || DEFAULT_WELCOME_SCENE_BACKGROUND_PATH;
 }
 
-function applyWelcomeSceneBackground(weatherValues = null) {
+function applyWelcomeSceneBackground(weatherValues = null, force = false) {
+    if (!force && (currentScene === 'scene-welcome' || currentScene === 'scene-intro')) {
+        return;
+    }
+
     const sunriseIso = weatherValues?.sunriseIso || latestSunriseIso;
     const sunsetIso = weatherValues?.sunsetIso || latestSunsetIso;
     const selectedBackground = pickWelcomeSceneBackground(sunriseIso, sunsetIso);
@@ -1635,18 +1667,30 @@ async function discoverRuntimeAssets() {
         return;
     }
 
-    const [marineFiles, winterFiles, normalTracks, warningTracks, welcomeTracks, backgroundDiscovery, welcomeAssets] = await Promise.all([
+    const [marineFiles, winterFiles, normalTracks, warningTracks, welcomeTracks, backgroundDiscovery, welcomeAssets, hydroNone, hydroAction, hydroMinor, hydroModerate, hydroMajor] = await Promise.all([
         listDirectoryFiles('marine', false),
         listDirectoryFiles('winter', true),
         listDirectoryFiles('music/normal', false),
         listDirectoryFiles('music/warning', false),
         listDirectoryFiles('music/welcome', false),
         discoverBackgroundAssets(),
-        discoverWelcomeAssets()
+        discoverWelcomeAssets(),
+        listDirectoryFiles('hydrological/none', true),
+        listDirectoryFiles('hydrological/action', true),
+        listDirectoryFiles('hydrological/minor', true),
+        listDirectoryFiles('hydrological/moderate', true),
+        listDirectoryFiles('hydrological/major', true)
     ]);
 
     discoveredMarineBodyImagePaths = marineFiles.filter(isImageAssetPath);
     discoveredWinterBodyImagePaths = winterFiles.filter(isImageAssetPath);
+    discoveredHydroCardImagesByCategory = {
+        none: hydroNone.filter(isImageAssetPath),
+        action: hydroAction.filter(isImageAssetPath),
+        minor: hydroMinor.filter(isImageAssetPath),
+        moderate: hydroModerate.filter(isImageAssetPath),
+        major: hydroMajor.filter(isImageAssetPath)
+    };
     discoveredMusicTracksByAlertMode = {
         normal: normalTracks.filter(isAudioAssetPath),
         warning: warningTracks.filter(isAudioAssetPath),
@@ -1708,7 +1752,7 @@ function toWebAssetPath(value) {
 
     const withoutScheme = normalized.replace(/^file:\/+/i, '');
     const withoutDrive = withoutScheme.replace(/^[a-z]:\//i, '');
-    const markerMatch = withoutDrive.match(/(?:^|\/)(Backgrounds|Welcome|music|marine|winter)\/.*/i);
+    const markerMatch = withoutDrive.match(/(?:^|\/)(Backgrounds|Welcome|music|marine|winter|hydrological)\/.*/i);
     if (markerMatch) {
         return markerMatch[0].replace(/^\//, '');
     }
@@ -1751,6 +1795,7 @@ function applyRuntimeAssetsFromManifest(manifest) {
 
     const nextMarineImages = sanitizeAssetPathList(manifest.marineImages, isImageAssetPath);
     const nextWinterImages = sanitizeAssetPathList(manifest.winterImages, isImageAssetPath);
+    const nextHydroImages = manifest.hydroImages && typeof manifest.hydroImages === 'object' ? manifest.hydroImages : {};
 
     const nextMusic = manifest.music && typeof manifest.music === 'object' ? manifest.music : {};
     const normalizedBackgrounds = normalizeSegmentState(manifest.backgrounds, 'byCondition');
@@ -1798,6 +1843,13 @@ function applyRuntimeAssetsFromManifest(manifest) {
 
     discoveredMarineBodyImagePaths = nextMarineImages;
     discoveredWinterBodyImagePaths = nextWinterImages;
+    discoveredHydroCardImagesByCategory = {
+        none: sanitizeAssetPathList(nextHydroImages.none, isImageAssetPath),
+        action: sanitizeAssetPathList(nextHydroImages.action, isImageAssetPath),
+        minor: sanitizeAssetPathList(nextHydroImages.minor, isImageAssetPath),
+        moderate: sanitizeAssetPathList(nextHydroImages.moderate, isImageAssetPath),
+        major: sanitizeAssetPathList(nextHydroImages.major, isImageAssetPath)
+    };
     discoveredMusicTracksByAlertMode = {
         normal: sanitizeAssetPathList(nextMusic.normal, isAudioAssetPath),
         warning: sanitizeAssetPathList(nextMusic.warning, isAudioAssetPath),
@@ -2209,23 +2261,18 @@ function buildWinterForecastSummary(hourlyPeriods, forecastPeriods, metarData, t
     };
 }
 
-async function getWeather(city) {
+async function getWeather(city, isManual = false) {
     if (!city) {
         alert('Please enter a city name');
         return;
     }
 
-    return requestWeatherForLocation(() => geocodeCity(city), city);
+    return requestWeatherForLocation(() => geocodeCity(city), city, isManual);
 }
 
 async function getWeatherForCurrentLocation() {
     if (!navigator.geolocation) {
         alert('Current location is not supported by this browser.');
-        return;
-    }
-
-    if (isWeatherRequestInFlight) {
-        console.log('[WEATHER] Request already in progress, skipping duplicate search.');
         return;
     }
 
@@ -2244,7 +2291,7 @@ async function getWeatherForCurrentLocation() {
             });
         });
         const { latitude, longitude } = position.coords;
-        await requestWeatherForLocation(() => reverseGeocodeCoordinates(latitude, longitude));
+        await requestWeatherForLocation(() => reverseGeocodeCoordinates(latitude, longitude), '', true);
     } catch (error) {
         console.error('Current location unavailable:', error);
         alert('Unable to get your current location. Check browser location permissions and try again.');
@@ -2256,17 +2303,18 @@ async function getWeatherForCurrentLocation() {
     }
 }
 
-async function requestWeatherForLocation(resolveLocation, refreshQuery = '') {
-    if (isWeatherRequestInFlight) {
-        console.log('[WEATHER] Request already in progress, skipping duplicate search.');
-        return;
-    }
-
+async function requestWeatherForLocation(resolveLocation, refreshQuery = '', isManualSearch = false) {
+    const requestId = ++activeWeatherRequestId;
     isWeatherRequestInFlight = true;
 
     try {
         await ensureRuntimeAssetsLoaded();
         const { lat, lon, cityName, zipCode } = await resolveLocation();
+
+        if (requestId !== activeWeatherRequestId) {
+            return;
+        }
+
         lastSearchedCity = cityName;
         lastWeatherRefreshQuery = String(refreshQuery || cityName).trim();
 
@@ -2275,10 +2323,15 @@ async function requestWeatherForLocation(resolveLocation, refreshQuery = '') {
         }
 
         if (settingsCityInput) {
-            settingsCityInput.value = cityName;
+            settingsCityInput.value = lastWeatherRefreshQuery;
         }
 
-        const { forecastData, alertsData, hourlyData, metarData, pointsData } = await fetchWeatherGovData(lat, lon);
+        const { forecastData, alertsData, hourlyData, metarData, gridData, pointsData } = await fetchWeatherGovData(lat, lon);
+
+        if (requestId !== activeWeatherRequestId) {
+            return;
+        }
+
         const forecastOfficeCode = String(pointsData?.properties?.cwa || '').trim().toUpperCase();
         const [openAqData, sunTimesData, uvData, lunarData, pollenData, pollenExtendedData, hydrologicalData, marineData, radarData] = await Promise.all([
             fetchOpenAQCurrentConditions(lat, lon),
@@ -2291,6 +2344,11 @@ async function requestWeatherForLocation(resolveLocation, refreshQuery = '') {
             fetchClosestSurfZones(lat, lon, forecastOfficeCode, SURF_MAX_CLOSEST_ZONES, MARINE_RADIUS_MILES),
             fetchClosestRadarLoop(lat, lon)
         ]);
+
+        if (requestId !== activeWeatherRequestId) {
+            return;
+        }
+
         if (pollenData) {
             console.log('[API] pollenCurrentForecastData:', pollenData);
         }
@@ -2318,15 +2376,27 @@ async function requestWeatherForLocation(resolveLocation, refreshQuery = '') {
         if (radarData) {
             console.log('[API] radarData:', radarData);
         }
-        const weatherValues = processWeatherData(forecastData, alertsData, hourlyData, metarData, openAqData, sunTimesData, uvData, lunarData, pollenData, pollenExtendedData, hydrologicalData, marineData, radarData);
+        const weatherValues = processWeatherData(forecastData, alertsData, hourlyData, metarData, openAqData, sunTimesData, uvData, lunarData, pollenData, pollenExtendedData, hydrologicalData, marineData, radarData, gridData);
         displayWeather(weatherValues, cityName);
+
+        if (isManualSearch) {
+            switchToQueueIndex(0);
+            if (currentScene === 'scene-intro') {
+                runIntroSceneSequence();
+            }
+        }
+
         closeSettingsModal();
 
     } catch (error) {
-        console.error('Error:', error);
-        alert('Error fetching weather data');
+        if (requestId === activeWeatherRequestId) {
+            console.error('Error:', error);
+            alert('Error fetching weather data');
+        }
     } finally {
-        isWeatherRequestInFlight = false;
+        if (requestId === activeWeatherRequestId) {
+            isWeatherRequestInFlight = false;
+        }
     }
 }
 
@@ -2353,15 +2423,25 @@ async function geocodeCity(city) {
         .map(part => part.trim())
         .filter(Boolean);
 
-    const cityName = String(
+    const localityName = String(
         address.city ||
         address.town ||
         address.village ||
         address.municipality ||
+        address.hamlet ||
         address.county ||
         displayNameParts[0] ||
         city
     ).trim();
+
+    const stateCodeMatch = String(address['ISO3166-2-lvl4'] || '').match(/^US-([A-Z]{2})$/i);
+    const stateCode = stateCodeMatch ? stateCodeMatch[1].toUpperCase() : '';
+    const stateName = String(address.state || address.state_district || '').trim();
+    const stateLabel = stateCode || stateName;
+
+    const cityName = stateLabel && !localityName.toLowerCase().includes(stateLabel.toLowerCase())
+        ? `${localityName}, ${stateLabel}`
+        : localityName;
 
     let zipCodeRaw = address.postcode || '';
 
@@ -2404,13 +2484,17 @@ async function reverseGeocodeCoordinates(latitude, longitude) {
         address.town ||
         address.village ||
         address.municipality ||
+        address.hamlet ||
         address.county ||
         data?.display_name?.split(',')[0] ||
         'Current Location'
     ).trim();
+    const stateCodeMatch = String(address['ISO3166-2-lvl4'] || '').match(/^US-([A-Z]{2})$/i);
+    const stateCode = stateCodeMatch ? stateCodeMatch[1].toUpperCase() : '';
     const stateName = String(address.state || address.state_district || '').trim();
-    const cityName = stateName && localityName.toLowerCase() !== stateName.toLowerCase()
-        ? `${localityName}, ${stateName}`
+    const stateLabel = stateCode || stateName;
+    const cityName = stateLabel && !localityName.toLowerCase().includes(stateLabel.toLowerCase())
+        ? `${localityName}, ${stateLabel}`
         : localityName;
     const zipCodeMatch = String(address.postcode || '').match(/\d{5}/);
 
@@ -3359,7 +3443,8 @@ function getHydroCardImagePath(category) {
     const normalizedCategory = String(category || 'none').toLowerCase();
     const knownCategories = new Set(['none', 'action', 'minor', 'moderate', 'major']);
     const safeCategory = knownCategories.has(normalizedCategory) ? normalizedCategory : 'none';
-    return `hydrological/${safeCategory}.png`;
+    const discoveredList = discoveredHydroCardImagesByCategory[safeCategory] || [];
+    return pickRandomArrayItem(discoveredList) || DEFAULT_HYDRO_CARD_IMAGE_PATHS[safeCategory] || DEFAULT_HYDRO_CARD_IMAGE_PATHS.none;
 }
 
 function getHydroThresholdsByType(gaugeData, valueType) {
@@ -4033,6 +4118,53 @@ async function fetchLunarData() {
     }
 }
 
+function parseIsoDurationMs(durationStr) {
+    if (!durationStr) {
+        return 0;
+    }
+    const match = String(durationStr).match(/P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?)?/i);
+    if (!match) {
+        return 0;
+    }
+    const days = parseInt(match[1] || '0', 10);
+    const hours = parseInt(match[2] || '0', 10);
+    const minutes = parseInt(match[3] || '0', 10);
+    return ((days * 86400) + (hours * 3600) + (minutes * 60)) * 1000;
+}
+
+function getGridValueForTime(series, targetMs = Date.now()) {
+    if (!series || !Array.isArray(series.values) || series.values.length === 0) {
+        return null;
+    }
+    const uom = String(series.uom || '');
+    for (const item of series.values) {
+        const parts = String(item.validTime || '').split('/');
+        if (parts.length < 2) {
+            continue;
+        }
+        const startMs = new Date(parts[0]).getTime();
+        const durMs = parseIsoDurationMs(parts[1]);
+        const endMs = startMs + durMs;
+        if (targetMs >= startMs && targetMs < endMs) {
+            return { value: item.value, uom };
+        }
+    }
+    let closestItem = null;
+    let closestDist = Infinity;
+    for (const item of series.values) {
+        const parts = String(item.validTime || '').split('/');
+        if (parts.length > 0) {
+            const startMs = new Date(parts[0]).getTime();
+            const dist = Math.abs(startMs - targetMs);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestItem = item;
+            }
+        }
+    }
+    return closestItem ? { value: closestItem.value, uom } : null;
+}
+
 /* ===========================================
    WEATHER.GOV API: Fetch forecast and alerts
    =========================================== */
@@ -4068,34 +4200,43 @@ async function fetchWeatherGovData(lat, lon) {
     console.log('[API] hourlyData:', hourlyData);
 
     // Get METAR observations
+    let metarData = null;
     const observationURL = pointsData.properties.observationStations;
-    if (!observationURL) {
-        throw new Error('No observation stations returned from weather.gov');
-    }
+    if (observationURL) {
+        try {
+            const observationResponse = await fetch(observationURL, {
+                headers: { 'Accept': 'application/geo+json' }
+            });
+            if (observationResponse.ok) {
+                const observationData = await observationResponse.json();
+                console.log('[API] observationData:', observationData);
+                const stationFeatures = Array.isArray(observationData?.features) ? observationData.features : [];
 
-    const observationResponse = await fetch(observationURL, {
-        headers: { 'Accept': 'application/geo+json' }
-    });
-    if (!observationResponse.ok) {
-        const text = await observationResponse.text();
-        throw new Error(`Observation request failed: ${observationResponse.status} ${text}`);
-    }
-    const observationData = await observationResponse.json();
-    // Debug: inspect observation stations payload
-    console.log('[API] observationData:', observationData);
-    const stationCode = observationData.features[0].properties.stationIdentifier;
+                for (let i = 0; i < Math.min(stationFeatures.length, 3); i += 1) {
+                    const stationCode = stationFeatures[i]?.properties?.stationIdentifier;
+                    if (!stationCode) {
+                        continue;
+                    }
 
-    const metarURL = `https://api.weather.gov/stations/${stationCode}/observations/latest`;
-    const metarResponse = await fetch(metarURL, {
-        headers: { 'Accept': 'application/geo+json' }
-    });
-    if (!metarResponse.ok) {
-        const text = await metarResponse.text();
-        throw new Error(`METAR observations request failed: ${metarResponse.status} ${text}`);
+                    try {
+                        const metarURL = `https://api.weather.gov/stations/${stationCode}/observations/latest`;
+                        const metarResponse = await fetch(metarURL, {
+                            headers: { 'Accept': 'application/geo+json' }
+                        });
+                        if (metarResponse.ok) {
+                            metarData = await metarResponse.json();
+                            console.log('[API] metarData:', metarData);
+                            break;
+                        }
+                    } catch (metarErr) {
+                        console.warn(`[API] METAR fetch failed for station ${stationCode}:`, metarErr);
+                    }
+                }
+            }
+        } catch (obsErr) {
+            console.warn('[API] Observation stations request failed:', obsErr);
+        }
     }
-    const metarData = await metarResponse.json();
-    // Debug: inspect latest station observation payload
-    console.log('[API] metarData:', metarData);
 
     const forecastURL = pointsData.properties.forecast;
     if (!forecastURL) {
@@ -4113,35 +4254,82 @@ async function fetchWeatherGovData(lat, lon) {
     // Debug: inspect daily forecast payload
     console.log('[API] forecastData:', forecastData);
 
-    // Get zone ID for alerts
-    const zoneUrl = pointsData.properties.forecastZone;
-    if (!zoneUrl) {
-        throw new Error('No forecast zone ID returned from weather.gov');
+    // Get zone IDs for alerts (forecast / town zone, county zone, fire weather zone)
+    let alertsData = { features: [] };
+    const alertZoneUrls = [
+        pointsData?.properties?.forecastZone,
+        pointsData?.properties?.county,
+        pointsData?.properties?.fireWeatherZone
+    ].filter(Boolean);
+
+    const alertZoneIds = Array.from(new Set(
+        alertZoneUrls
+            .map(url => String(url).split('/').pop().trim())
+            .filter(id => id.length >= 4)
+    ));
+
+    if (alertZoneIds.length > 0) {
+        try {
+            const alertResponses = await Promise.allSettled(
+                alertZoneIds.map(async zoneId => {
+                    const alertsURL = `https://api.weather.gov/alerts/active/zone/${encodeURIComponent(zoneId)}`;
+                    const res = await fetch(alertsURL, {
+                        headers: { 'Accept': 'application/geo+json' }
+                    });
+                    if (res.ok) {
+                        return res.json();
+                    }
+                    return null;
+                })
+            );
+
+            const allAlertFeatures = [];
+            const seenAlertIds = new Set();
+            alertResponses.forEach(result => {
+                if (result.status === 'fulfilled' && result.value?.features && Array.isArray(result.value.features)) {
+                    result.value.features.forEach(feature => {
+                        const alertId = String(feature?.id || feature?.properties?.id || feature?.properties?.headline || '').trim();
+                        if (alertId && !seenAlertIds.has(alertId)) {
+                            seenAlertIds.add(alertId);
+                            allAlertFeatures.push(feature);
+                        } else if (!alertId) {
+                            allAlertFeatures.push(feature);
+                        }
+                    });
+                }
+            });
+
+            alertsData = { features: allAlertFeatures };
+            console.log('[API] alertsData:', alertsData);
+        } catch (alertsErr) {
+            console.warn('[API] Alerts request failed:', alertsErr);
+        }
     }
 
-    // Extract last 6 characters from the zone URL
-    const zoneId = zoneUrl.slice(-6);
-
-    // Use zone-specific alerts endpoint
-    const alertsURL = `https://api.weather.gov/alerts/active/zone/${zoneId}`;
-    const alertsResponse = await fetch(alertsURL, {
-        headers: { 'Accept': 'application/geo+json' }
-    });
-    if (!alertsResponse.ok) {
-        const text = await alertsResponse.text();
-        throw new Error(`Alerts request failed: ${alertsResponse.status} ${text}`);
+    // Get gridpoints data (precipitation amount, snowfall, sky cover, probability of precipitation)
+    let gridData = null;
+    const gridURL = pointsData.properties.forecastGridData;
+    if (gridURL) {
+        try {
+            const gridResponse = await fetch(gridURL, {
+                headers: { 'Accept': 'application/geo+json' }
+            });
+            if (gridResponse.ok) {
+                gridData = await gridResponse.json();
+                console.log('[API] gridData:', gridData);
+            }
+        } catch (gridErr) {
+            console.warn('[API] Forecast grid data request failed:', gridErr);
+        }
     }
-    const alertsData = await alertsResponse.json();
-    // Debug: inspect active alerts payload
-    console.log('[API] alertsData:', alertsData);
 
-    return { forecastData, alertsData, hourlyData, metarData, pointsData };
+    return { forecastData, alertsData, hourlyData, metarData, gridData, pointsData };
 }
 
 /* ===========================================
    DATA PROCESSING: Extract weather values
    =========================================== */
-function processWeatherData(forecastData, alertsData, hourlyData, metarData, airNowData, sunTimesData, uvData, lunarData, pollenData, pollenExtendedData, hydrologicalData, marineData, radarData) {
+function processWeatherData(forecastData, alertsData, hourlyData, metarData, airNowData, sunTimesData, uvData, lunarData, pollenData, pollenExtendedData, hydrologicalData, marineData, radarData, gridData = null) {
     const currentHourlyPeriod = hourlyData.properties.periods[0];
     const currentPeriod = forecastData.properties.periods[0];
     const nextPeriod = forecastData.properties.periods[1] || currentPeriod;
@@ -4162,12 +4350,12 @@ function processWeatherData(forecastData, alertsData, hourlyData, metarData, air
 
     /*METAR data (use only for data not provided by hourly forecast)*/
     // Convert units: pressure (Pa to millibars), wind (km/h to mph), visibility (m to miles)
-    const pressureCurrent = metarData.properties.barometricPressure ? {
+    const pressureCurrent = metarData?.properties?.barometricPressure?.value ? {
         value: Math.round(metarData.properties.barometricPressure.value / 100), // Pa to millibars (whole number)
         unit: 'millibars'
     } : null;
 
-    const windGustValueCurrent = metarData.properties.windGust
+    const windGustValueCurrent = metarData?.properties?.windGust?.value
         ? Math.round((metarData.properties.windGust.value * 0.621371) * 10) / 10
         : null;
     const windGustDisplayCurrent = formatWindDisplay(
@@ -4176,7 +4364,7 @@ function processWeatherData(forecastData, alertsData, hourlyData, metarData, air
         'NONE'
     );
 
-    const visibilityCurrent = metarData.properties.visibility ? {
+    const visibilityCurrent = metarData?.properties?.visibility?.value ? {
         value: Math.round((metarData.properties.visibility.value * 0.000621371) * 100) / 100, // m to miles
         unit: 'miles'
     } : null;
@@ -4185,9 +4373,30 @@ function processWeatherData(forecastData, alertsData, hourlyData, metarData, air
     const temperatureHigh = currentPeriod.isDaytime ? currentPeriod.temperature : nextPeriod.temperature;
     const temperatureLow = currentPeriod.isDaytime ? nextPeriod.temperature : currentPeriod.temperature;
 
-    // Process alerts
-    const hasAlerts = alertsData.features && alertsData.features.length > 0;
-    const activeAlerts = hasAlerts ? alertsData.features.map(alert => alert.properties.headline).join('; ') : 'None';
+    /*Gridpoints data (precipitation, snow, sky cover)*/
+    const gridPop = getGridValueForTime(gridData?.properties?.probabilityOfPrecipitation);
+    const gridQpf = getGridValueForTime(gridData?.properties?.quantitativePrecipitation);
+    const gridSnow = getGridValueForTime(gridData?.properties?.snowfallAmount);
+    const gridSky = getGridValueForTime(gridData?.properties?.skyCover);
+
+    const precipChanceRaw = toFiniteNumber(gridPop?.value) ?? toFiniteNumber(currentHourlyPeriod?.probabilityOfPrecipitation?.value) ?? toFiniteNumber(currentPeriod?.probabilityOfPrecipitation?.value) ?? 0;
+    const precipChanceCurrent = Math.round(Number(precipChanceRaw));
+
+    const qpfMm = toFiniteNumber(gridQpf?.value);
+    const precipAmountInches = qpfMm !== null ? (qpfMm / 25.4).toFixed(2) : '0.00';
+
+    const snowMm = toFiniteNumber(gridSnow?.value);
+    const snowfallAmountInches = snowMm !== null ? (snowMm / 25.4).toFixed(1) : '0.0';
+
+    const skyCoverRaw = toFiniteNumber(gridSky?.value);
+    const cloudCoverPercent = skyCoverRaw !== null ? Math.round(skyCoverRaw) : null;
+
+    // Process alerts (combining town forecast zone, county zone, and fire weather zone)
+    const alertFeatures = Array.isArray(alertsData?.features) ? alertsData.features : [];
+    const alertHeadlines = alertFeatures
+        .map(alert => String(alert?.properties?.headline || alert?.properties?.event || '').trim())
+        .filter(Boolean);
+    const activeAlerts = alertHeadlines.length > 0 ? alertHeadlines.join('; ') : 'None';
 
     const heatIndexCurrent = computeHeatIndex(temperatureCurrent, humidityCurrent);
     const detailedForecastSegments = build36HourSegments(forecastData.properties.periods);
@@ -4247,6 +4456,10 @@ function processWeatherData(forecastData, alertsData, hourlyData, metarData, air
         temperatureCurrent,
         temperatureHigh,
         temperatureLow,
+        precipChanceCurrent,
+        precipAmountInches,
+        snowfallAmountInches,
+        cloudCoverPercent,
         weeklyForecast,
         hourlyForecast,
         conditionCurrent,
@@ -4288,6 +4501,7 @@ function processWeatherData(forecastData, alertsData, hourlyData, metarData, air
         winterIceAccumulationText: winterSummary.winterIceAccumulationText,
         winterWindGustsText: winterSummary.winterWindGustsText,
         winterTodayLowText: winterSummary.winterTodayLowText,
+        alertHeadlines,
         alerts: activeAlerts
     };
 }
@@ -5143,38 +5357,54 @@ function getSunIconPath(uvValue) {
     return knownIcons[category] || 'sun icons/low.png';
 }
 
+function computeSunProgress(sunriseIso, sunsetIso) {
+    if (!sunriseIso || !sunsetIso) {
+        return 0;
+    }
+
+    const sunriseDate = new Date(sunriseIso);
+    const sunsetDate = new Date(sunsetIso);
+    if (Number.isNaN(sunriseDate.getTime()) || Number.isNaN(sunsetDate.getTime())) {
+        return 0;
+    }
+
+    const now = new Date();
+    const localSunrise = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sunriseDate.getHours(), sunriseDate.getMinutes(), sunriseDate.getSeconds());
+    let localSunset = new Date(now.getFullYear(), now.getMonth(), now.getDate(), sunsetDate.getHours(), sunsetDate.getMinutes(), sunsetDate.getSeconds());
+    if (localSunset <= localSunrise) {
+        localSunset = new Date(localSunset.getTime() + 24 * 60 * 60 * 1000);
+    }
+
+    if (now < localSunrise) {
+        return 0;
+    }
+
+    if (now > localSunset) {
+        return 1;
+    }
+
+    const totalDaylightMs = localSunset.getTime() - localSunrise.getTime();
+    if (totalDaylightMs <= 0) {
+        return 0;
+    }
+
+    return Math.min(1, Math.max(0, (now.getTime() - localSunrise.getTime()) / totalDaylightMs));
+}
+
 function positionSunProgressIcon(sunriseIso, sunsetIso) {
     const icon = document.getElementById('sun-progress-icon');
-    const arc = document.querySelector('.sun-arc');
-    const wrap = document.querySelector('.sun-arc-wrap');
-    if (!icon || !arc || !wrap) {
+    if (!icon) {
         return;
     }
 
-    const arcRect = arc.getBoundingClientRect();
-    const wrapRect = wrap.getBoundingClientRect();
-    const radius = arcRect.width / 2;
-    if (!Number.isFinite(radius) || radius <= 0) {
-        return;
-    }
-
-    const sunriseMs = new Date(sunriseIso || '').getTime();
-    const sunsetMs = new Date(sunsetIso || '').getTime();
-    let clampedProgress = 0;
-    if (Number.isFinite(sunriseMs) && Number.isFinite(sunsetMs) && sunsetMs > sunriseMs) {
-        const nowMs = Date.now();
-        clampedProgress = Math.min(1, Math.max(0, (nowMs - sunriseMs) / (sunsetMs - sunriseMs)));
-    }
-
-    const centerX = (arcRect.left - wrapRect.left) + radius;
-    const centerY = (arcRect.top - wrapRect.top) + (arcRect.height / 2);
-    const theta = Math.PI + (clampedProgress * Math.PI);
-    const x = centerX + (radius * Math.cos(theta));
-    const y = centerY + (radius * Math.sin(theta));
+    const progress = computeSunProgress(sunriseIso, sunsetIso);
+    const theta = Math.PI + (progress * Math.PI);
+    const xPercent = (50 + (50 * Math.cos(theta))).toFixed(3);
+    const yPercent = (50 + (50 * Math.sin(theta))).toFixed(3);
 
     icon.style.opacity = '1';
-    icon.style.left = `${x}px`;
-    icon.style.top = `${y}px`;
+    icon.style.left = `${xPercent}%`;
+    icon.style.top = `${yPercent}%`;
 }
 
 function animateAirScalePointer(aqiRaw) {
@@ -5551,9 +5781,7 @@ function displayWeather(weatherValues, cityName) {
 
     latestSunriseIso = weatherValues.sunriseIso;
     latestSunsetIso = weatherValues.sunsetIso;
-    if (currentScene === 'scene-sun') {
-        positionSunProgressIcon(latestSunriseIso, latestSunsetIso);
-    }
+    positionSunProgressIcon(latestSunriseIso, latestSunsetIso);
 
     const sunUvValue = document.getElementById('sun-uv-value');
     if (sunUvValue) {
@@ -5716,6 +5944,111 @@ function displayWeather(weatherValues, cityName) {
 
     if (headerTemp) {
         headerTemp.textContent = `${weatherValues.temperatureCurrent}${DEGREE_SYMBOL}`;
+    }
+
+    updateLowerThirdTicker(weatherValues, cityName);
+}
+
+function buildLowerThirdTickerText(weatherValues, cityName) {
+    if (!weatherValues || !cityName) {
+        return 'CURRENT FORECAST FOR YOUR AREA • SELECT A LOCATION IN SETTINGS • HUMIDITY • DEW POINT • PRESSURE • VISIBILITY • WIND • GUSTS • HEAT INDEX • UV';
+    }
+
+    const segments = [];
+
+    // Active Alert Headline(s) (Town or County zone)
+    const alertList = Array.isArray(weatherValues.alertHeadlines) && weatherValues.alertHeadlines.length > 0
+        ? weatherValues.alertHeadlines
+        : (weatherValues.alerts && String(weatherValues.alerts).trim().toLowerCase() !== 'none'
+            ? [weatherValues.alerts]
+            : []);
+
+    alertList.forEach(headline => {
+        const cleanHeadline = String(headline || '').trim();
+        if (cleanHeadline && cleanHeadline.toLowerCase() !== 'none') {
+            segments.push(`ACTIVE ALERT: ${cleanHeadline.toUpperCase()}`);
+        }
+    });
+
+    // Header & Current Condition & Temp
+    const locationName = String(cityName || 'YOUR AREA').trim().toUpperCase();
+    const condition = String(weatherValues.conditionCurrent || '').trim().toUpperCase();
+    const currentTemp = weatherValues.temperatureCurrent !== null && weatherValues.temperatureCurrent !== undefined
+        ? `${weatherValues.temperatureCurrent}${DEGREE_SYMBOL}F`
+        : '--';
+
+    segments.push(`CURRENT FORECAST FOR ${locationName}: ${condition ? `${condition}, ` : ''}${currentTemp}`);
+
+    // High & Low
+    if (weatherValues.temperatureHigh !== null && weatherValues.temperatureHigh !== undefined) {
+        segments.push(`HIGH: ${weatherValues.temperatureHigh}${DEGREE_SYMBOL}F`);
+    }
+    if (weatherValues.temperatureLow !== null && weatherValues.temperatureLow !== undefined) {
+        segments.push(`LOW: ${weatherValues.temperatureLow}${DEGREE_SYMBOL}F`);
+    }
+
+    // Precipitation Chance
+    if (weatherValues.precipChanceCurrent !== null && weatherValues.precipChanceCurrent !== undefined) {
+        segments.push(`PRECIP CHANCE: ${weatherValues.precipChanceCurrent}%`);
+    }
+
+    // Precipitation Amount / Snowfall (in inches)
+    if (weatherValues.precipAmountInches !== null && weatherValues.precipAmountInches !== undefined) {
+        segments.push(`PRECIP AMOUNT: ${weatherValues.precipAmountInches} IN`);
+    }
+    if (weatherValues.snowfallAmountInches !== null && weatherValues.snowfallAmountInches !== undefined && Number(weatherValues.snowfallAmountInches) > 0) {
+        segments.push(`SNOWFALL: ${weatherValues.snowfallAmountInches} IN`);
+    }
+
+    // Cloud Coverage (from skycover)
+    if (weatherValues.cloudCoverPercent !== null && weatherValues.cloudCoverPercent !== undefined) {
+        segments.push(`CLOUD COVER: ${weatherValues.cloudCoverPercent}%`);
+    }
+
+    // Now tab information
+    if (weatherValues.humidityCurrent !== null && weatherValues.humidityCurrent !== undefined) {
+        segments.push(`HUMIDITY: ${weatherValues.humidityCurrent}%`);
+    }
+    if (weatherValues.dewpointCurrent) {
+        segments.push(`DEW POINT: ${weatherValues.dewpointCurrent.value}${DEGREE_SYMBOL}${weatherValues.dewpointCurrent.unit}`);
+    }
+    if (weatherValues.pressureCurrent) {
+        segments.push(`PRESSURE: ${weatherValues.pressureCurrent.value} ${weatherValues.pressureCurrent.unit.toUpperCase()}`);
+    }
+    if (weatherValues.visibilityCurrent) {
+        segments.push(`VISIBILITY: ${weatherValues.visibilityCurrent.value} ${weatherValues.visibilityCurrent.unit.toUpperCase()}`);
+    }
+    if (weatherValues.windDisplayCurrent) {
+        segments.push(`WIND: ${weatherValues.windDisplayCurrent}`);
+    }
+    if (weatherValues.windGustDisplayCurrent) {
+        segments.push(`GUSTS: ${weatherValues.windGustDisplayCurrent}`);
+    }
+    if (weatherValues.heatIndexCurrent) {
+        segments.push(`HEAT INDEX: ${weatherValues.heatIndexCurrent}${DEGREE_SYMBOL}F`);
+    }
+
+    // UV
+    if (weatherValues.uvCurrent !== null && weatherValues.uvCurrent !== undefined) {
+        const uvVal = Number(weatherValues.uvCurrent);
+        const uvCat = getUvCategory(uvVal).toUpperCase();
+        segments.push(`UV: ${uvVal.toFixed(1)} (${uvCat})`);
+    }
+
+    return segments.join('   •   ');
+}
+
+function updateLowerThirdTicker(weatherValues, cityName) {
+    const textEl = document.getElementById('lower-third-ticker-text');
+    const dupEl = document.getElementById('lower-third-ticker-text-duplicate');
+    if (!textEl) {
+        return;
+    }
+
+    const tickerText = buildLowerThirdTickerText(weatherValues, cityName);
+    textEl.textContent = tickerText;
+    if (dupEl) {
+        dupEl.textContent = tickerText;
     }
 }
 

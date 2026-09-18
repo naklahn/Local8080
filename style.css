@@ -497,8 +497,10 @@
     height: 50%;
     display: flex;
     align-items: center;
-    padding: 0 clamp(10px, 1.6vmin, 16px);
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    font-family: 'Helvetica Neue Bold', Helvetica, Arial, sans-serif;
     font-weight: 700;
     font-size: clamp(0.72rem, 1.3vmin, 1rem);
     letter-spacing: 0.08em;
@@ -506,6 +508,33 @@
     border-bottom: 2px solid #4474ba;
     border-left: 2px solid #4474ba;
     background: #000c39;
+    white-space: nowrap;
+}
+
+.ticker-track {
+    display: inline-flex;
+    white-space: nowrap;
+    animation: ticker-scroll 45s linear infinite;
+    will-change: transform;
+}
+
+.ticker-track:hover {
+    animation-play-state: paused;
+}
+
+.ticker-item {
+    display: inline-block;
+    padding-right: 60px;
+    white-space: nowrap;
+}
+
+@keyframes ticker-scroll {
+    0% {
+        transform: translate3d(0, 0, 0);
+    }
+    100% {
+        transform: translate3d(-50%, 0, 0);
+    }
 }
 
 @media (max-width: 768px) {
@@ -1433,6 +1462,14 @@ body[data-scene-theme="severe"] {
     color: #b8c4b8 !important;
 }
 
+#scene-hydrological .hydro-gauge-name,
+#scene-hydrological .hydro-gauge-meta,
+#scene-hydrological .hydro-meter-pill,
+#scene-hydrological .hydro-meter[data-no-data="true"]::after,
+#scene-hydrological .hydro-impact {
+    color: #ffffff !important;
+}
+
 @media (max-width: 768px) {
     .marine-primary-grid {
         grid-template-columns: 1fr;
@@ -1557,7 +1594,7 @@ body[data-scene-theme="severe"] {
 .sun-progress-icon {
     position: absolute;
     left: 0;
-    top: 100%;
+    top: 50%;
     width: clamp(18px, 2.8vmin, 30px);
     aspect-ratio: 1 / 1;
     transform: translate(-50%, -50%);
@@ -1568,6 +1605,7 @@ body[data-scene-theme="severe"] {
     filter: drop-shadow(0 0 10px rgba(255, 210, 110, 0.75));
     z-index: 2;
     pointer-events: none;
+    transition: left 300ms ease-out, top 300ms ease-out, opacity 200ms ease;
 }
 
 .sun-main-times-wrap {
@@ -2034,7 +2072,7 @@ body[data-scene-theme="severe"] {
     content: "";
     position: absolute;
     inset: 0;
-    background-image: var(--hydro-card-image, url("hydrological/none.JPEG"));
+    background-image: var(--hydro-card-image, url("hydrological/none/none.JPEG"));
     background-size: cover;
     background-position: center;
     /* opacity: 0.36; */

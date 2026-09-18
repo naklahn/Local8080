@@ -144,6 +144,13 @@ function Season-From-Name([string]$name) {
 $manifest = [ordered]@{
     marineImages = @()
     winterImages = @()
+    hydroImages = [ordered]@{
+        none = @()
+        action = @()
+        minor = @()
+        moderate = @()
+        major = @()
+    }
     music = [ordered]@{
         normal = @()
         warning = @()
@@ -199,6 +206,19 @@ if (Test-Path 'winter') {
         ForEach-Object { To-Relative $_.FullName } |
         Where-Object { Is-Image $_ }
     )
+}
+
+if (Test-Path 'hydrological') {
+    foreach ($category in @('none', 'action', 'minor', 'moderate', 'major')) {
+        $folder = "hydrological/$category"
+        if (Test-Path $folder) {
+            $manifest.hydroImages[$category] = @(
+                Get-ChildItem $folder -Recurse -File |
+                ForEach-Object { To-Relative $_.FullName } |
+                Where-Object { Is-Image $_ }
+            )
+        }
+    }
 }
 
 foreach ($mode in @('normal', 'warning', 'welcome')) {
