@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-09-27T05:18:55.116Z",
+  "updatedAt": "2026-09-28T05:24:09.247Z",
   "source": "NASA/JPL Horizons",
-  "currentIlluminationPercent": 99.6,
-  "currentSizePercent": 78.9,
-  "currentPhaseName": "FULL MOON",
+  "currentIlluminationPercent": 96.9,
+  "currentSizePercent": 86.5,
+  "currentPhaseName": "WANING GIBBOUS",
   "nextMajorPhaseName": "FULL MOON",
-  "nextMajorPhaseDateText": "SEP 27",
-  "nextSuperMoonText": "SEP 27"
+  "nextMajorPhaseDateText": "OCT 25",
+  "nextSuperMoonText": "OCT 25"
 }
