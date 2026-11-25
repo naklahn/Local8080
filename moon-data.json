@@ -1,10 +1,10 @@
 {
-  "updatedAt": "2026-11-24T09:54:22.712Z",
+  "updatedAt": "2026-11-25T08:33:58.381Z",
   "source": "NASA/JPL Horizons",
-  "currentIlluminationPercent": 99.8,
+  "currentIlluminationPercent": 99.2,
   "currentSizePercent": 100,
   "currentPhaseName": "FULL MOON",
   "nextMajorPhaseName": "FULL MOON",
-  "nextMajorPhaseDateText": "NOV 24",
-  "nextSuperMoonText": "NOV 24"
+  "nextMajorPhaseDateText": "DEC 23",
+  "nextSuperMoonText": "DEC 23"
 }
